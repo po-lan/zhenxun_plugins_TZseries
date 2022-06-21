@@ -201,7 +201,7 @@ async def _(arg: Message = CommandArg()):
     if le == -1:
         text = f"当前回本期望： 自动\n"
     else:
-        text = f"当前回本期望： {Jackpots.keys()[le]}\n"
+        text = f"当前回本期望： {list(Jackpots.keys())[le]}\n"
 
     text += "刮刮乐所有奖池回本期望：\n\n"
     text += f"id:-1  期望：自动调节\n"
