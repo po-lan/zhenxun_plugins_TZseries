@@ -2,7 +2,6 @@ import re
 
 from nonebot.rule import to_me
 
-from services.db_context import db
 from nonebot import on_command
 from nonebot.params import CommandArg
 from nonebot.permission import SUPERUSER
@@ -13,7 +12,7 @@ from utils.image_utils import text2image
 from models.bag_user import BagUser
 from configs.config import NICKNAME, Config
 import random
-from .models.TZtreasuryV1 import TZtreasury
+from ._model import TZtreasury
 
 __zx_plugin_name__ = "刮刮乐"
 __plugin_usage__ = f"""
@@ -282,37 +281,4 @@ Jackpots = {
 Jackpot_Values = list(Jackpots.values())
 
 
-# 数据库
 
-
-class TZlottery(db.Model):
-    __tablename__ = "tz_lottery"
-
-    id = db.Column(db.Integer(), primary_key=True)
-    group_id = db.Column(db.BigInteger(), nullable=False)
-    money = db.Column(db.BigInteger(), nullable=False, default=0)
-
-    _idx1 = db.Index("tz_treasury_idx1", "group_id", unique=True)
-
-    @classmethod
-    async def getLotteryGold(cls, group_id: int):
-        query = cls.query.where(cls.group_id == group_id)
-        query = query.with_for_update()
-        my = await query.gino.first()
-
-        if my:
-            return my.money
-        else:
-            await cls.create(group_id=group_id, money=1000)
-            return 1000
-
-    @classmethod
-    async def setLotteryGold(cls, group_id: int, num: int):
-        query = cls.query.where(cls.group_id == group_id)
-        query = query.with_for_update()
-        my = await query.gino.first()
-
-        if my:
-            await my.update(money=num).apply()
-        else:
-            await cls.create(group_id=group_id, money=1000 + num)

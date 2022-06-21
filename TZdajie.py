@@ -7,7 +7,7 @@ from utils.image_utils import text2image
 from utils.message_builder import image
 from models.ban_user import BanUser
 from models.bag_user import BagUser
-from .models.TZtreasuryV1 import TZtreasury
+from ._model import TZtreasury
 from basic_plugins.ban.data_source import a_ban
 from basic_plugins.shop.shop_handle.data_source import register_goods
 import nonebot

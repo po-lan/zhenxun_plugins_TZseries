@@ -10,7 +10,7 @@ from configs.config import NICKNAME, Config
 from nonebot_plugin_apscheduler import scheduler
 from utils.utils import is_number, UserBlockLimiter
 from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, MessageEvent, Message, MessageSegment
-from .models.TZtreasuryV1 import TZtreasury
+from ._model import TZtreasury
 
 
 __zx_plugin_name__ = "21点"

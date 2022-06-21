@@ -7,7 +7,7 @@ from models.bag_user import BagUser
 from cn2an import cn2an
 from nonebot import on_command
 from nonebot.rule import to_me
-from .models.TZtreasuryV1 import TZtreasury
+from ._model import TZtreasury
 import random
 from models.sign_group_user import SignGroupUser
 

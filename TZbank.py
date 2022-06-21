@@ -6,8 +6,7 @@ from utils.utils import get_message_at,is_number
 from utils.message_builder import image
 from utils.data_utils import init_rank
 from configs.config import NICKNAME
-from .models.TZtreasuryV1 import TZtreasury
-from services.db_context import db
+from ._model import TZtreasury, TZBank
 from models.bag_user import BagUser
 
 
@@ -51,57 +50,6 @@ __plugin_settings__ = {
     "cmd": ["#银行存入","#银行取出","#银行汇款","#个人汇款","#个人转账","#我的存款", "#存款排行"],
 }
 
-class TZBank(db.Model):
-    __tablename__ = "tz_bank"
-    id = db.Column(db.Integer(), primary_key=True)
-    user_qq = db.Column(db.BigInteger(), nullable=False)
-    group_id = db.Column(db.BigInteger(), nullable=False)
-    money = db.Column(db.BigInteger(), default=0)
-
-    _idx1 = db.Index("tz_bank_idx1", "user_qq", "group_id", unique=True)
-
-
-    @classmethod
-    async def spend(cls, uid: int,  group_id: int, num: int):
-        query = cls.query.where((cls.user_qq == uid) & (cls.group_id == group_id))
-        query = query.with_for_update()
-        my = await query.gino.first()
-
-        if my:
-            await my.update(money=my.money - num).apply()
-        else:
-            await cls.create( user_qq = uid, group_id=group_id, money= 5 - num)
-    
-    @classmethod
-    async def add(cls, uid: int,  group_id: int, num: int):
-        query = cls.query.where((cls.user_qq == uid) & (cls.group_id == group_id))
-        query = query.with_for_update()
-        my = await query.gino.first()
-
-        if my:
-            await my.update(money=my.money + num).apply()
-        else:
-            await cls.create( user_qq = uid, group_id=group_id, money= 5 + num)
-
-    @classmethod
-    async def get(cls, uid: int,  group_id: int):
-        query = cls.query.where((cls.user_qq == uid) & (cls.group_id == group_id))
-        query = query.with_for_update()
-        my = await query.gino.first()
-
-        if my:
-            return my.money
-        else:
-            await cls.create( user_qq = uid, group_id=group_id, money = 5)
-            return 5
-
-    @classmethod
-    async def get_all_users(cls, group_id: int):
-        if not group_id:
-            query = await cls.query.gino.all()
-        else:
-            query = await cls.query.where((cls.group_id == group_id)).gino.all()
-        return query
 
 save = on_command("#银行存入", priority=5,permission=GROUP, block=True)
 @save.handle()
