@@ -83,9 +83,9 @@ ggl = on_command("刮刮乐", priority=5, block=True)
 async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
     msg = arg.extract_plain_text().strip()
     num = 1
-    maxNum = Config.get_config("TZggl", "MAXNUM")
-    setJackpotLevel = Config.get_config("TZggl", "LEVEL")
-    Magnification = Config.get_config("TZggl", "MAGNIFICATION")
+    maxNum = Config.get_config("TZggl", "MAXNUM") or 50
+    setJackpotLevel = Config.get_config("TZggl", "LEVEL") or -1
+    Magnification = Config.get_config("TZggl", "MAGNIFICATION") or 1
     if is_number(msg) and int(msg) > 0:
         num = int(msg) if int(msg) <= maxNum else maxNum
     uid = event.user_id
