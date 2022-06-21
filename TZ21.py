@@ -63,6 +63,7 @@ blk = UserBlockLimiter()
 async def update():
     for gid in Ginfo:
         gold = Ginfo[gid]["gold"]
+        """
         if gold > 0:
             try:
                 from .TZggl import TZlottery
@@ -70,6 +71,7 @@ async def update():
                 await TZlottery.setLotteryGold(gid,gold)
             except:
                 pass
+        """
         #归零
         Ginfo[gid]["gold"] = 0
 
