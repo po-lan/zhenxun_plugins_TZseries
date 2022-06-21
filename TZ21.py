@@ -8,27 +8,9 @@ from utils.image_utils import text2image
 from nonebot.permission import SUPERUSER
 from configs.config import NICKNAME, Config
 from nonebot_plugin_apscheduler import scheduler
-from models.group_member_info import GroupInfoUser
-from utils.utils import get_message_text, is_number, UserBlockLimiter
+from utils.utils import is_number, UserBlockLimiter
 from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, MessageEvent, Message, MessageSegment
-
-
-async def dl():
-    await AsyncHttpx.download_file(
-        "https://raw.githubusercontent.com/po-lan/zhenxun_plugins_TZseries/main/models/TZtreasuryV1.py",
-        path = path
-    )
-
-try:
-    from models.TZtreasury import TZtreasury
-except:
-    from utils.http_utils import AsyncHttpx
-    from pathlib import Path
-    path = Path("models")  / "TZtreasury.py"
-    import asyncio
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(dl())
-    from models.TZtreasury import TZtreasury
+from .models.TZtreasuryV1 import TZtreasury
 
 
 __zx_plugin_name__ = "21点"

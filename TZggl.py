@@ -10,25 +10,7 @@ from utils.image_utils import text2image
 from models.bag_user import BagUser
 from configs.config import NICKNAME, Config
 import random
-
-
-async def dl():
-    await AsyncHttpx.download_file(
-        "https://raw.githubusercontent.com/po-lan/zhenxun_plugins_TZseries/main/models/TZtreasuryV1.py",
-        path=path
-    )
-
-
-try:
-    from models.TZtreasury import TZtreasury
-except:
-    from utils.http_utils import AsyncHttpx
-    from pathlib import Path
-    path = Path("models") / "TZtreasury.py"
-    import asyncio
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(dl())
-    from models.TZtreasury import TZtreasury
+from .models.TZtreasuryV1 import TZtreasury
 
 
 __zx_plugin_name__ = "刮刮乐"

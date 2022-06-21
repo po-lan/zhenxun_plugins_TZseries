@@ -2,35 +2,16 @@ from nonebot.adapters.onebot.v11 import  GroupMessageEvent  , Message
 from nonebot.adapters.onebot.v11.permission import GROUP
 from nonebot.params import CommandArg
 from nonebot import on_command
-
-from utils.utils import get_message_text, get_message_at,is_number
+from utils.utils import get_message_at,is_number
 from utils.message_builder import image
 from utils.data_utils import init_rank
-
 from configs.config import NICKNAME
-
-from models.TZtreasury import TZtreasury
+from .models.TZtreasuryV1 import TZtreasury
 from services.db_context import db
 from models.bag_user import BagUser
 
-async def dl():
-    await AsyncHttpx.download_file(
-        "https://raw.githubusercontent.com/po-lan/zhenxun_plugins_TZseries/main/models/TZtreasuryV1.py",
-        path = path
-    )
 
-try:
-    from models.TZtreasury import TZtreasury
-except:
-    from utils.http_utils import AsyncHttpx
-    from pathlib import Path
-    path = Path("models")  / "TZtreasury.py"
-    import asyncio
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(dl())
-    from models.TZtreasury import TZtreasury
-
-__zx_plugin_name__ = "堂主银行"
+__zx_plugin_name__ = "银行"
 __plugin_usage__ = f"""
 usage：
     {NICKNAME}的银行绝对安全，不会被打劫

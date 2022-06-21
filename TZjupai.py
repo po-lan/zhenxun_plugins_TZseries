@@ -27,7 +27,7 @@ jupai = on_command("小人举牌", priority=5, block=True)
 async def _(arg: Message = CommandArg()):
     text = arg.extract_plain_text().strip()
     if text == "":
-        jupai.finish("你要举什么，你倒是带上啊")
+        await jupai.finish("你要举什么，你倒是带上啊")
         return
     if len(text) > 32:
         text = text[0:32]

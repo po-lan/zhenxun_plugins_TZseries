@@ -7,27 +7,8 @@ from models.bag_user import BagUser
 from cn2an import cn2an
 from nonebot import on_command
 from nonebot.rule import to_me
-
-async def dl():
-    await AsyncHttpx.download_file(
-        "https://raw.githubusercontent.com/po-lan/zhenxun_plugins_TZseries/main/models/TZtreasuryV1.py",
-        path = path
-    )
-
-try:
-    from models.TZtreasury import TZtreasury
-except:
-    from utils.http_utils import AsyncHttpx
-    from pathlib import Path
-    path = Path("models")  / "TZtreasury.py"
-    import asyncio
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(dl())
-    from models.TZtreasury import TZtreasury
-
-
+from .models.TZtreasuryV1 import TZtreasury
 import random
-from models.TZtreasury import TZtreasury
 from models.sign_group_user import SignGroupUser
 
 __zx_plugin_name__ = "乞讨福利金"
@@ -71,7 +52,7 @@ async def _(event: GroupMessageEvent):
     #获取基础数据
     golds = await TZtreasury.get(group_id=group)
     if golds < 10:
-        charity.finish(f"{NICKNAME}的金库里也没钱了\n快去交税吧")
+        await charity.finish(f"{NICKNAME}的金库里也没钱了\n快去交税吧")
 
     user_qq_list, impression_list , user_group = await SignGroupUser.get_all_impression(group_id=group)
 
@@ -120,12 +101,12 @@ async def _( event: GroupMessageEvent,arg: Message = CommandArg()):
         except ValueError:
             num = 1000
     if 500 > num:
-        upa.finish("少于500金币就不要捐了吧")
+        await upa.finish("少于500金币就不要捐了吧")
         return
     
     user =await BagUser.get_gold(uid, group)
     if user < num:
-        upa.finish("你并没有这些钱")
+        await upa.finish("你并没有这些钱")
         return
 
     await BagUser.spend_gold(uid, group , num)
