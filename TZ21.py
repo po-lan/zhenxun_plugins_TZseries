@@ -197,7 +197,7 @@ async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
 
     await ruchangx(gid, uid, uname, cost)
     blk.set_false(gid)
-    await opendian.finish(f'{uname}发起了一场21点挑战')
+    await opendian.finish(f'{uname}发起了一场21点挑战\n{uname}已自动入场')
 
 
 
@@ -266,7 +266,14 @@ async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
     uname = event.sender.card if event.sender.card else event.sender.nickname
     blk.set_false(gid)
     await ruchangx(gid, uid, uname, cost)
-    await ruchang.send("你以入场，请等待开局",at_sender = True)
+    # await ruchang.send("你已入场，请等待开局",at_sender = True)
+
+    text = f'你已加入 \t {Ginfo[gid]["players"][Ginfo[gid]["startUid"]]["uname"]} \t 创建的21点游戏\n其他已入场的玩家：'
+    for user in Ginfo[gid]["players"]:
+        text += f'\n\t·{user["uname"]}'
+    
+    #发送
+    await ruchang.send(image(b64=(await text2image(text, color="#f9f6f2", padding=10)).pic2bs4()),at_sender = True)
 
 # 入场 记录
 async def ruchangx(gid: int, uid: int, uname: str,  cost: int):
