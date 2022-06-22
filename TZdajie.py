@@ -42,7 +42,7 @@ __plugin_settings__ = {
 __plugin_cd_limit__ = {
     "cd": 120,
     "limit_type": "user",
-    "rst": "一直打劫是要被盯上的！，120秒后再试试吧",
+    "rst": "一直打劫是要被盯上的！120秒后再试试吧",
 }
 
 __plugin_configs__ = {

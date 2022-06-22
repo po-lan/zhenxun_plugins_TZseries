@@ -17,7 +17,6 @@ usage：
     不过也有一点手续费
     存入的金额不可高于 自己拥有总额的70%
     指令：
-        #我的存款
         #银行存入 num
         #银行取出 num
         #银行汇款 [@user] num 
@@ -27,6 +26,7 @@ usage：
         #个人转账 [@user] num
           人对人
           不超过手头资产的70%
+        #我的存款
         #存款排行 ?num=10
     ?表示可选参数 =为默认值
     福利金从金库抽取
@@ -39,7 +39,7 @@ __plugin_cmd__ = [
     "#银行汇款",
     "#个人汇款",
     "#个人转账",
-    "#我的存款", 
+    "#我的存款",
     "#存款排行"
 ]
 __plugin_version__ = 1.0
@@ -79,7 +79,7 @@ async def _(event: GroupMessageEvent, arg: Message = CommandArg()):
             await TZBank.add(uid, group,num)
             await save.finish(f"{num}成功存入\n{NICKNAME}收取了3%({int(num*0.03)})的手续费")
     else:
-        await save.finish(f"存入失败\n存取超过拥有总额的70%\n当前最大可存入{int(CanSave)}")
+        await save.finish(f"存入失败\n存取超过拥有总额的70%\n当前最大可存入{ int(CanSave) if int(CanSave)>0 else 0}")
 
 
 take = on_command("#银行取出", priority=5,permission=GROUP, block=True)
@@ -92,7 +92,7 @@ async def _(event: GroupMessageEvent, arg: Message = CommandArg()):
             await save.finish(f"连一金币都不取你要干啥")
     except:
         await save.finish("取款额只能是数字")
-        
+
     uid = event.user_id
     group = event.group_id
     inbank = await TZBank.get(uid, group)
@@ -115,7 +115,7 @@ async def _(event: GroupMessageEvent, arg: Message = CommandArg()):
             await save.finish(f"汇款额一金币都不到你要干啥")
     except:
         await save.finish("汇款额只能是数字")
-    
+
     qq = get_message_at(event.json())
     if len(qq)>0:
         toqq = qq[0]
@@ -127,7 +127,7 @@ async def _(event: GroupMessageEvent, arg: Message = CommandArg()):
     if toqq == uid:
         await save.finish("你要给自己汇款？你信不信我能把你钱全吞了")
 
-    
+
     group = event.group_id
     inbank = await TZBank.get(uid, group)
 
@@ -150,7 +150,7 @@ async def _(event: GroupMessageEvent, arg: Message = CommandArg()):
             await save.finish(f"汇款额一金币都不到你要干啥")
     except:
         await save.finish("汇款额只能是数字")
-    
+
     qq = get_message_at(event.json())
     if len(qq)>0:
         toqq = qq[0]
@@ -186,14 +186,14 @@ async def _(event: GroupMessageEvent, arg: Message = CommandArg()):
             await save.finish(f"转账额一金币都不到你要干啥")
     except:
         await save.finish("转账额只能是数字")
-    
+
     qq = get_message_at(event.json())
     if len(qq)>0:
         toqq = qq[0]
     else:
         await save.finish("倒是@你要转账的人啊")
-    
-    
+
+
     uid = event.user_id
     #防止转账对象是自己
     if toqq == uid:
@@ -233,8 +233,8 @@ async def _(event: GroupMessageEvent, arg: Message = CommandArg()):
     all_users = await TZBank.get_all_users(event.group_id)
     all_user_id = [user.user_qq for user in all_users]
     all_user_data = [user.money for user in all_users]
-    
+
     rank_image = await init_rank("存款排行", all_user_id, all_user_data, event.group_id, num)
-    
+
     if rank_image:
         await rank.finish(image(b64=rank_image.pic2bs4()))

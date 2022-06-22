@@ -16,12 +16,12 @@ from ._model import TZtreasury
 __zx_plugin_name__ = "21点"
 __plugin_usage__ = f"""
 usage：
-    第一位玩家发起活动，指令21点[赌注]
-    接受21点赌局，指令：入场[赌注]（此指令无反馈）
+    第一位玩家发起活动，指令：21点[赌注(金额数量)]
+    接受21点赌局，指令：入场[赌注(金额数量)]（此指令无反馈）
     人齐后开局，指令：开局
     拿牌指令：拿牌
     宣布停止，指令：停牌（此指令无反馈）
-    所有人停牌，或者超时90s后，结算指令：结束
+    所有人停牌，或者超时90s后，结算指令：21点(结算/结束)
     {NICKNAME} 必要点数17
     起手2牌合计21点为黑杰克，比其他21点大
     获胜奖励为胜者按各自入场费
@@ -29,7 +29,7 @@ usage：
     当然你可以输入 [21点打钱 金额] 给机器人打钱
 """.strip()
 __plugin_des__ = f"{NICKNAME}小赌场-21点"
-__plugin_cmd__ = ["21点 [赌注]/继续/结算"]
+__plugin_cmd__ = ["21点 [赌注]/继续/21点结算"]
 __plugin_type__ = ("群内小游戏",)
 __plugin_version__ = 1.0
 __plugin_author__ = "落灰"
@@ -83,6 +83,23 @@ scheduler.add_job(
 )
 
 dq = on_command("21点打钱", priority=5, block=True)
+
+opendian = on_command("21点", priority=5, block=True)
+
+ruchang = on_command("入场", priority=5, block=True)
+
+kaiju = on_command("开局", priority=5, block=True)
+
+napai = on_command("拿牌", priority=5, block=True)
+
+tingpai = on_command("停牌", priority=5, block=True)
+
+jiesuan = on_command("21点结算", aliases={"21点结束"},priority=5, block=True)
+
+FC = on_command("21点流水控制", priority=5, permission=SUPERUSER, block=True)
+
+chance = on_command("开局前随机换牌概率", priority=5, permission=SUPERUSER, block=True)
+
 @dq.handle()
 async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
     gid = event.group_id
@@ -115,7 +132,7 @@ async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
         await dq.finish(f"如果你是要给{NICKNAME}打钱记得带上金额啊", at_sender=True)
 
 
-opendian = on_command("21点", priority=5, block=True)
+
 @opendian.handle()
 async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
     gid = event.group_id
@@ -181,7 +198,7 @@ async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
     await opendian.finish(f'{uname}发起了一场21点挑战')
 
 
-ruchang = on_command("入场", priority=5, block=True)
+
 @ruchang.handle()
 async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
     gid = event.group_id
@@ -261,7 +278,6 @@ async def ruchangx(gid: int, uid: int, uname: str,  cost: int):
 
 
 # 开局
-kaiju = on_command("开局", priority=5, block=True)
 @kaiju.handle()
 async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
     gid = event.group_id
@@ -336,7 +352,7 @@ async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
     await opendian.finish(image(b64=(await text2image(text, color="#f9f6f2", padding=10)).pic2bs4()))
 
 
-napai = on_command("拿牌", priority=5, block=True)
+
 @napai.handle()
 async def _(bot: Bot, event: MessageEvent, arg: Message = CommandArg()):
     uid = event.user_id
@@ -392,7 +408,7 @@ async def _(bot: Bot, event: MessageEvent, arg: Message = CommandArg()):
     await napai.finish(image(b64=(await text2image(text, color="#f9f6f2", padding=10)).pic2bs4()))
 
 
-tingpai = on_command("停牌", priority=5, block=True)
+
 @tingpai.handle()
 async def _(bot: Bot, event: MessageEvent, arg: Message = CommandArg()):
     uid = event.user_id
@@ -412,7 +428,7 @@ async def _(bot: Bot, event: MessageEvent, arg: Message = CommandArg()):
     Ginfo[gid]["players"][uid]["isEnd"] = True
 
 
-jiesuan = on_command("结束", priority=5, block=True)
+
 @jiesuan.handle()
 async def _(bot: Bot, event: MessageEvent, arg: Message = CommandArg()):
     uid = event.user_id
@@ -613,7 +629,6 @@ async def end(gid):
 #控制部分
 
 #流水控制
-FC = on_command("21点流水控制", priority=5, permission=SUPERUSER, block=True)
 @FC.handle()
 async def _(arg: Message = CommandArg()):
     msg = arg.extract_plain_text().strip()
@@ -629,7 +644,6 @@ async def _(arg: Message = CommandArg()):
         
 
 # 奖池调整
-chance = on_command("开局前随机换牌概率", priority=5, permission=SUPERUSER, block=True)
 @chance.handle()
 async def _(arg: Message = CommandArg()):
     msg = arg.extract_plain_text().strip()

@@ -9,7 +9,7 @@ __plugin_usage__ = """
 usage：
     生成举牌小人
     指令：
-        举牌 文本[max=32]
+        小人举牌 文本[max=32]
 """.strip()
 __plugin_des__ = "生成举牌小人"
 __plugin_cmd__ = ["小人举牌 文本"]
@@ -20,7 +20,7 @@ __plugin_settings__ = {
     "level": 5,
     "default_status": True,
     "limit_superuser": False,
-    "cmd": ["举牌"],
+    "cmd": ["小人举牌"],
 }
 jupai = on_command("小人举牌", priority=5, block=True)
 @jupai.handle()
