@@ -266,6 +266,7 @@ async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
     uname = event.sender.card if event.sender.card else event.sender.nickname
     blk.set_false(gid)
     await ruchangx(gid, uid, uname, cost)
+    await ruchang.send("你以入场，请等待开局",at_sender = True)
 
 # 入场 记录
 async def ruchangx(gid: int, uid: int, uname: str,  cost: int):
@@ -478,7 +479,7 @@ async def _(bot: Bot, event: MessageEvent, arg: Message = CommandArg()):
         
         # 列出用户
         for uid in notList:
-            user = Ginfo[gid]["startUid"][uid]
+            user = Ginfo[gid]["players"][uid]
             text += f'\n·{user["uname"]}({getSum(user["list"][:user["show"]],True)})'
 
         await jiesuan.finish(image(b64=(await text2image(text, color="#f9f6f2", padding=10)).pic2bs4()))
