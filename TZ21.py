@@ -455,23 +455,33 @@ async def _(bot: Bot, event: MessageEvent, arg: Message = CommandArg()):
     if Ginfo[gid]["startUid"] != uid:
         await opendian.finish(f"开场的人结束，别人别瞎搅合")
 
-    # 判断是否全部玩家都停牌了
-    def getEnd(T):
-        BackList = []
-        #超时后可以直接结束
+    # 获取 未停牌 玩家 Uid 列表 
+    def notEndUser(T):
+        notEndUserList = []
+        # 超时后可以直接结束
         if  time.time() - Ginfo[gid]["time"]> 90:
-            return [True]
-        #判断 玩家是否全部停牌
-        for v in T:
-            #机器人 和 发起者 都可以当作 已经停牌
-            if v["uid"] == 0 or v["uid"] == Ginfo[gid]["startUid"]:
-                BackList.append(True)
-                break
-            BackList.append(v["isEnd"])
-        return BackList
+            return []
 
-    if all(getEnd(Ginfo[gid]["players"].values())) == False:
-        await tingpai.finish("还有人没停牌")
+        # 遍历每一个玩家
+        for v in T:
+            # 不需要 发起者 和 机器人本身
+            if v["uid"] != 0 and v["uid"] != Ginfo[gid]["startUid"]:
+                notEndUserList.append(v["uid"])
+        
+        #返回 列表
+        return notEndUserList
+    
+    notList = notEndUser(Ginfo[gid]["players"].values())
+
+    if len(notList) > 0:
+        text = "以下用户未停牌:"
+        
+        # 列出用户
+        for uid in notList:
+            user = Ginfo[gid]["startUid"][uid]
+            text += f'\n·{user["uname"]}({getSum(user["list"][:user["show"]],True)})'
+
+        await jiesuan.finish(image(b64=(await text2image(text, color="#f9f6f2", padding=10)).pic2bs4()))
 
     # 计算结果
     await end(gid)
