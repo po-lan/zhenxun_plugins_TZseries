@@ -16,8 +16,8 @@ from ._model import TZtreasury
 __zx_plugin_name__ = "21点"
 __plugin_usage__ = f"""
 usage：
-    第一位玩家发起活动，指令：21点[赌注(金额数量)]
-    接受21点赌局，指令：入场[赌注(金额数量)]（此指令无反馈）
+    第一位玩家发起活动，指令：21点[金币数量]
+    接受21点赌局，指令：入场[金币数量]（此指令无反馈）
     人齐后开局，指令：开局
     拿牌指令：拿牌
     宣布停止，指令：停牌（此指令无反馈）
@@ -61,8 +61,9 @@ blk = UserBlockLimiter()
 
 #定时刷新
 async def update():
+    global Ginfo
     for gid in Ginfo:
-        gold = Ginfo[gid]["gold"]
+        # gold = Ginfo[gid]["gold"]
         """
         if gold > 0:
             try:
@@ -102,6 +103,7 @@ chance = on_command("开局前随机换牌概率", priority=5, permission=SUPERU
 
 @dq.handle()
 async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
+    global Ginfo
     gid = event.group_id
     uid = event.user_id
     if blk.check(gid):
@@ -141,7 +143,7 @@ async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
         await opendian.finish()
     blk.set_true(gid)
 
-
+    global Ginfo
     # 获取用户名
     uname = event.sender.card if event.sender.card else event.sender.nickname
     # 判断上一场是否结束
@@ -201,6 +203,7 @@ async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
 
 @ruchang.handle()
 async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
+    global Ginfo
     gid = event.group_id
     uid = event.user_id
     #阻断 防止触发过快
@@ -266,7 +269,7 @@ async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
 
 # 入场 记录
 async def ruchangx(gid: int, uid: int, uname: str,  cost: int):
-
+    global Ginfo
     Ginfo[gid]["players"][uid] = {
         "uname": uname,
         "cost": cost,
@@ -280,6 +283,7 @@ async def ruchangx(gid: int, uid: int, uname: str,  cost: int):
 # 开局
 @kaiju.handle()
 async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
+    global Ginfo
     gid = event.group_id
     uid = event.user_id
     # 判断上一场是否结束
@@ -355,6 +359,7 @@ async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
 
 @napai.handle()
 async def _(bot: Bot, event: MessageEvent, arg: Message = CommandArg()):
+    global Ginfo
     uid = event.user_id
     gid = event.group_id
     #阻断 防止过快
@@ -411,6 +416,7 @@ async def _(bot: Bot, event: MessageEvent, arg: Message = CommandArg()):
 
 @tingpai.handle()
 async def _(bot: Bot, event: MessageEvent, arg: Message = CommandArg()):
+    global Ginfo
     uid = event.user_id
     gid = event.group_id
     # 判断 是否已经开局
@@ -431,6 +437,7 @@ async def _(bot: Bot, event: MessageEvent, arg: Message = CommandArg()):
 
 @jiesuan.handle()
 async def _(bot: Bot, event: MessageEvent, arg: Message = CommandArg()):
+    global Ginfo
     uid = event.user_id
     gid = event.group_id
     # 判断 是否已经开局
@@ -472,6 +479,7 @@ async def _(bot: Bot, event: MessageEvent, arg: Message = CommandArg()):
 
 async def end(gid):
     # 让机器人的牌先打到17
+    global Ginfo
     while getSum(Ginfo[gid]["players"][0]["list"][:Ginfo[gid]["players"][0]["show"]]) < 17:
         Ginfo[gid]["players"][0]["show"] += 1
 
