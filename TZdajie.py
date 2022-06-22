@@ -1,13 +1,14 @@
 from re import T, X
 from nonebot import on_command, Driver
 from nonebot.adapters.onebot.v11 import GroupMessageEvent
-from utils.utils import get_message_text, get_message_at
+from utils.utils import get_message_text, get_message_at, is_number
 from models.group_member_info import GroupInfoUser
 from utils.image_utils import text2image
 from utils.message_builder import image
 from models.ban_user import BanUser
 from models.bag_user import BagUser
 from ._model import TZtreasury
+from configs.config import Config
 from basic_plugins.ban.data_source import a_ban
 from basic_plugins.shop.shop_handle.data_source import register_goods
 import nonebot
@@ -35,14 +36,21 @@ __plugin_settings__ = {
     "default_status": True,
     "limit_superuser": False,
     "cmd": ["打劫 [@user]"],
+
 }
 
 __plugin_cd_limit__ = {
     "cd": 120,
     "limit_type": "user",
-    "rst": None,
+    "rst": "一直打劫是要被盯上的！，120秒后再试试吧",
 }
 
+__plugin_configs__ = {
+    "banTime": {
+        "value": 3,
+        "help": "打劫失败进入小黑屋的时长，默认为3小时",
+        "default_value": 3
+    }}
 save = {}
 savetime = 1800
 enableCD = True
@@ -216,8 +224,13 @@ async def _(event: GroupMessageEvent):
             else:
                 text = f"{name.user_name}看你太穷就没收你的金币，不过给你送监狱去了\n\n"
                 # text += await a_ban(uid,3600,event.user_name,"你")
-                if await BanUser.ban(uid, 4, 1800):
-                    text += "你将在这里被关30分钟"
+                ban_tiem = Config.get_config("TZdajie", "banTime")
+                if not is_number(ban_tiem):
+                    ban_tiem = 3
+                if int(ban_tiem) <= 0:
+                    ban_tiem = 3
+                if await BanUser.ban(uid, 4, ban_tiem * 3600):
+                    text += f"你将在这里被关{ban_tiem}小时"
 
     # await dj.finish(text, at_sender=True)
     await dj.finish(image(b64=(await text2image(text, color="#f9f6f2", padding=10)).pic2bs4()), at_sender=True)

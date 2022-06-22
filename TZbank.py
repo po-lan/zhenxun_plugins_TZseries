@@ -17,6 +17,7 @@ usage：
     不过也有一点手续费
     存入的金额不可高于 自己拥有总额的70%
     指令：
+        #我的存款
         #银行存入 num
         #银行取出 num
         #银行汇款 [@user] num 
@@ -78,7 +79,7 @@ async def _(event: GroupMessageEvent, arg: Message = CommandArg()):
             await TZBank.add(uid, group,num)
             await save.finish(f"{num}成功存入\n{NICKNAME}收取了3%({int(num*0.03)})的手续费")
     else:
-        await save.finish(f"你还可以存入{int(CanSave)}")
+        await save.finish(f"存入失败\n存取超过拥有总额的70%\n当前最大可存入{int(CanSave)}")
 
 
 take = on_command("#银行取出", priority=5,permission=GROUP, block=True)
