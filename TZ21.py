@@ -59,6 +59,10 @@ __plugin_configs__ = {
 Ginfo = {}
 blk = UserBlockLimiter()
 
+def getStartUserName(gid):
+    global Ginfo
+    return Ginfo[gid]["players"][Ginfo[gid]["startUid"]]["uname"]
+
 #定时刷新
 async def update():
     global Ginfo
@@ -268,8 +272,8 @@ async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
     await ruchangx(gid, uid, uname, cost)
     # await ruchang.send("你已入场，请等待开局",at_sender = True)
 
-    text = f'你已加入 \t {Ginfo[gid]["players"][Ginfo[gid]["startUid"]]["uname"]} \t 创建的21点游戏\n其他已入场的玩家：'
-    for user in Ginfo[gid]["players"]:
+    text = f'你已加入 {getStartUserName(gid)} 创建的21点游戏\n全部已入场的玩家：'
+    for user in Ginfo[gid]["players"].values():
         text += f'\n\t·{user["uname"]}'
     
     #发送
@@ -461,7 +465,7 @@ async def _(bot: Bot, event: MessageEvent, arg: Message = CommandArg()):
     
     # 判断是不是开场的人发的开局
     if Ginfo[gid]["startUid"] != uid:
-        await opendian.finish(f"开场的人结束，别人别瞎搅合")
+        await opendian.finish(f'请 {getStartUserName(gid)} 结束，别人别瞎搅合')
 
     # 获取 未停牌 玩家 Uid 列表 
     def notEndUser(T):
@@ -473,7 +477,7 @@ async def _(bot: Bot, event: MessageEvent, arg: Message = CommandArg()):
         # 遍历每一个玩家
         for v in T:
             # 不需要 发起者 和 机器人本身
-            if v["uid"] != 0 and v["uid"] != Ginfo[gid]["startUid"]:
+            if v["uid"] != 0 and v["uid"] != Ginfo[gid]["startUid"] and v["isEnd"]:
                 notEndUserList.append(v["uid"])
         
         #返回 列表
@@ -681,6 +685,8 @@ async def _(arg: Message = CommandArg()):
             await chance.finish(f"你的输入有问题\n最小为0最大为10", at_sender=True)
     else:
         await chance.finish(f"参数只能为数字且不为空", at_sender=True)
+
+
 
 # 生成初始牌组
 def startCard():
