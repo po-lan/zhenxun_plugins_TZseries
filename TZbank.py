@@ -211,7 +211,7 @@ async def _(event: GroupMessageEvent, arg: Message = CommandArg()):
         await BagUser.spend_gold(uid, group,int(num*1.02))
         await BagUser.add_gold(toqq, group,num)
         await TZtreasury.add(group,int(num*0.02))
-        await save.finish(f"{num}成功转入对方的银行账户\n{NICKNAME}收取了2%({int(num*0.02)})的手续费")
+        await save.finish(f"{num}成功转入\n{NICKNAME}收取了2%({int(num*0.02)})的手续费")
 
 mySave = on_command("#我的存款", priority=5,permission=GROUP, block=True)
 @mySave.handle()

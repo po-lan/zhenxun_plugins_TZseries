@@ -26,10 +26,10 @@ usage：
     起手2牌合计21点为黑杰克，比其他21点大
     获胜奖励为胜者按各自入场费
     如果{NICKNAME}没钱了，就不会再玩了
-    当然你可以输入 [21点打钱 金额] 给机器人打钱
+    当然你可以输入 [21点打钱 金币数量] 给机器人打钱
 """.strip()
 __plugin_des__ = f"{NICKNAME}小赌场-21点"
-__plugin_cmd__ = ["21点 [赌注]/继续/21点结算"]
+__plugin_cmd__ = ["21点 [金币数量]/继续/21点结算"]
 __plugin_type__ = ("群内小游戏",)
 __plugin_version__ = 1.0
 __plugin_author__ = "落灰"
@@ -460,14 +460,14 @@ async def _(bot: Bot, event: MessageEvent, arg: Message = CommandArg()):
         await jiesuan.finish("你都没开场过，结束个锤子")
 
     #如果玩家不在列表里
-    if uid not in Ginfo[gid]["players"]:
+    if uid not in Ginfo[gid]["players"] and str(uid) not in list(bot.config.superusers):
         await opendian.finish(f"无关人员不要捣乱\n")
 
     # 判断是不是开场的人发的开局
-    if Ginfo[gid]["startUid"] != uid:
+    if Ginfo[gid]["startUid"] != uid and str(uid) not in list(bot.config.superusers):
         await opendian.finish(f'结束失败\n需由创建者 {getStartUserName(gid)} 结束')
 
-    # 获取 未停牌 玩家 Uid 列表 
+    # 获取 未停牌 玩家 Uid 列表
     def notEndUser(T):
         notEndUserList = []
         # 超时后可以直接结束
@@ -611,6 +611,9 @@ async def end(gid):
     else:
         # 按照玩家的得分 让机器人摸牌
         while UserMax >= getSum(Ginfo[gid]["players"][0]["list"][:Ginfo[gid]["players"][0]["show"]]) < 22:
+            if getSum(Ginfo[gid]["players"][0]["list"][:Ginfo[gid]["players"][0]["show"]]) >= 21 or len(
+                    Ginfo[gid]["players"][0]["list"]) == Ginfo[gid]["players"][0]["show"]:
+                break
             Ginfo[gid]["players"][0]["show"] += 1
 
     #提取没炸的人
