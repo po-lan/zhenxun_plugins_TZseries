@@ -580,10 +580,13 @@ async def end(gid):
                 x = 21 - getSum(T1)
                 isNotOK = True
                 while isNotOK and x > 1:
-                    if x in Ginfo[gid]["freeCard"]:
-                        T1.append(x)
-                        Ginfo[gid]["freeCard"].remove(x)
+                    Card = "A" if x == 1 else x
+                    if Card in Ginfo[gid]["freeCard"]:
+                        T1.append(Card)
+                        Ginfo[gid]["freeCard"].remove(Card)
                         isNotOK = False
+                    else:
+                        x -= 1
 
             while getSum(T1) < UserMax:
                 x = Ginfo[gid]["freeCard"][0]
