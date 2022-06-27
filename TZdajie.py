@@ -296,7 +296,7 @@ async def _(event: GroupMessageEvent):
     xgold2 = await BagUser.get_gold(uid, group)
 
     # 有钱不能劫色
-    if xgold1 > 10:
+   if xgold1 > 10 and xgold2 > xgold1:
         await js.finish("这人手里有点东西，不会屈于你的淫威", at_sender=True)
 
     #获取d1是否有电击枪
