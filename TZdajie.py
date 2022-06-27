@@ -132,11 +132,11 @@ async def _(event: GroupMessageEvent):
         else:
             d2 = 0
     succes = 55
-    succes1 =succes*218/100
+    succes1 =succes*218//100
     # d1拥有电击枪 被抢劫各部分成功概率下降至20%以下
     if d1:
         succes = 96
-        succes1 =succes*218/100
+        succes1 =succes*218//100
         text += f"这小伙子有家伙！)"
         await js.finish(text, at_sender=True)
         return
@@ -185,7 +185,7 @@ async def _(event: GroupMessageEvent):
             isMax = True
             cost = xgold1
 
-        if check >= random.randint(succes*136/100, succes*164/100):
+        if check >= random.randint(succes*136//100, succes*164//100):
             text = f'\n你一蹦而出，大喊打劫！\n{name.user_name}屈服于你淫威之下，拱手奉上{str(cost)}枚金币!!!'
             if enableCD:
                 if d2 and isMax == False:
@@ -209,7 +209,7 @@ async def _(event: GroupMessageEvent):
             await BagUser.spend_gold(qq, group, cost)
             await BagUser.add_gold(uid, group, (cost - num))
     else:
-        if check < random.randint(succes*27/100, succes*36/100):
+        if check < random.randint(succes*27//100, succes*36//100):
             l = random.randint(5, 15)
             m = int((check + l) * xgold2 / 100)
             text = f'\n警察正好路过把你带去做笔录，你为脱身缴纳了{check + l}%最大金额的罚款（{m}）\n其中90%（{int(0.9 * m)}）已纳入小金库'
@@ -296,7 +296,7 @@ async def _(event: GroupMessageEvent):
     xgold2 = await BagUser.get_gold(uid, group)
 
     # 有钱不能劫色
-   if xgold1 > 10 and xgold2 > xgold1:
+    if xgold1 > 10 and xgold2 > xgold1:
         await js.finish("这人手里有点东西，不会屈于你的淫威", at_sender=True)
 
     #获取d1是否有电击枪
