@@ -132,14 +132,13 @@ async def _(event: GroupMessageEvent):
         else:
             d2 = 0
     succes = 55
-    succes1 =succes*218//100
     # d1拥有电击枪 被抢劫各部分成功概率下降至20%以下
     if d1:
         succes = 96
-        succes1 =succes*218//100
         text += f"这小伙子有家伙！)"
         await js.finish(text, at_sender=True)
         return
+    succes1 =succes*218//100
     text = ""
     # 双方菜刀 大概率对砍
     if random.randint(0, 120) > 100 and d1 and d2:
