@@ -100,7 +100,7 @@ class TZBank(db.Model):
             return 5
 
     @classmethod
-    async def get_all_users(cls, group_id: int):
+    async def get_all_users(cls, group_id: int = None):
         if not group_id:
             query = await cls.query.gino.all()
         else:
