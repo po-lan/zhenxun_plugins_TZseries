@@ -117,7 +117,7 @@ async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
         level = random.randint(level, len(Jackpot_Values) - 1)
 
     # 调试用
-    text += f"当前档位：{level}\n"
+    # text += f"当前档位：{level}\n"
 
     allGet = 0
     b = {}
@@ -153,7 +153,7 @@ async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
     if int(allGet * 0.9) != 0:
         await BagUser.add_gold(uid, gid, allGet * 0.9)
 
-    await ggl.finish(image(b64=(await text2image(text, color="#f9f6f2", padding=10)).pic2bs4()))
+    await ggl.finish(image(b64=(await text2image(text, color="#f9f6f2", padding=10)).pic2bs4()),at_sender=True)
 
 
 # 倍率调整

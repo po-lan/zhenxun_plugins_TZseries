@@ -1,15 +1,13 @@
-from re import T, X
 from nonebot import on_command, Driver
 from nonebot.adapters.onebot.v11 import GroupMessageEvent
-from utils.utils import get_message_text, get_message_at, is_number
+from models.bag_user import BagUser
+from utils.utils import get_message_at, is_number
 from models.group_member_info import GroupInfoUser
 from utils.image_utils import text2image
 from utils.message_builder import image
 from models.ban_user import BanUser
-from models.bag_user import BagUser
 from ._model import TZtreasury
 from configs.config import Config
-from basic_plugins.ban.data_source import a_ban
 from basic_plugins.shop.shop_handle.data_source import register_goods
 import nonebot
 import random
@@ -77,7 +75,7 @@ if enableCD:
             "电击枪", 500, "防守使用（被抢劫成功概率降为20%，自动使用）"
         )
 
-jc = on_command("#劫财", priority=5, block=True)
+jc = on_command("#劫财", aliases={"#打劫"},priority=5, block=True)
 
 
 @jc.handle()
@@ -133,13 +131,13 @@ async def _(event: GroupMessageEvent):
             d2 = 0
     succes = 55
     # d1拥有电击枪 被抢劫各部分成功概率下降至20%以下
+    text = ""
     if d1:
         succes = 96
         text += f"这小伙子有家伙！)"
         await js.finish(text, at_sender=True)
         return
     succes1 =succes*218//100
-    text = ""
     # 双方菜刀 大概率对砍
     if random.randint(0, 120) > 100 and d1 and d2:
         f = random.randint(10, 30)
@@ -343,7 +341,7 @@ async def _(event: GroupMessageEvent):
 
     if check >= succes:
         text = f'\n你把{name.user_name}五花大绑，并把{name.user_name}丢在了自己的地下室!!!，你将在这经历调教!\n'
-        if await BanUser.js(uid, 4, 60):
+        if await BanUser.ban(uid, 4, 60):
             text += f"你将在这里被关1分钟"
         duration[qq] = int(time.time() + durationtime)
     else:
@@ -362,7 +360,7 @@ async def _(event: GroupMessageEvent):
         else:
             cost = int(cost / random.randint(2, 4))
             if xgold2 > cost * 3:
-                text = f'\n{name.user_}强劲的掌风将你吹倒在地，你被他铮亮的胸毛所震撼，最终鼻青脸肿的奉上{str(cost)}枚金币...\n'
+                text = f'\n{name.user_name}强劲的掌风将你吹倒在地，你被他铮亮的胸毛所震撼，最终鼻青脸肿的奉上{cost}枚金币...\n'
 
                 if enableCD:
                     if d1:
