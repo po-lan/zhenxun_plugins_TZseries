@@ -98,7 +98,7 @@ async def _(event: GroupMessageEvent):
         return
 
     #在被别人劫色的监禁cd中
-    if qq in duration.keys() and save[qq] > time.time():
+    if qq in duration.keys() and duration[qq] > time.time():
         await js.finish(f"""对方在别人手里，被别人保护的很好，不好下手。\n要不等{'%.2f' % (int(duration[qq] - time.time()) / 60 + 0.5)}分后回来看看？""",
                         at_sender=True)
         return
@@ -279,7 +279,7 @@ async def _(event: GroupMessageEvent):
                         at_sender=True)
         return
     #在被别人劫色的监禁cd中
-    if qq in duration.keys() and save[qq] > time.time():
+    if qq in duration.keys() and duration[qq] > time.time():
         await js.finish(f"""对方在别人手里，被别人保护的很好，不好下手。\n要不等{'%.2f' % (int(duration[qq] - time.time()) / 60 + 0.5)}分后回来看看？""",
                         at_sender=True)
         return
