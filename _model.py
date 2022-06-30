@@ -1,4 +1,9 @@
 from services.db_context import db
+import datetime
+
+
+def BeforeDay():
+    return (datetime.datetime.now()-datetime.timedelta(days=1))
 
 
 class TZtreasury(db.Model):
@@ -28,7 +33,7 @@ class TZtreasury(db.Model):
         my = await query.gino.first()
 
         if my:
-            await  my.update(money=my.money + num).apply()
+            await my.update(money=my.money + num).apply()
         else:
             await cls.create(group_id=group_id, money=10000 + num)
 
@@ -39,7 +44,7 @@ class TZtreasury(db.Model):
         my = await query.gino.first()
 
         if my:
-            await  my.update(money=num).apply()
+            await my.update(money=num).apply()
         else:
             await cls.create(group_id=group_id, money=10000 + num)
 
@@ -67,7 +72,8 @@ class TZBank(db.Model):
 
     @classmethod
     async def spend(cls, uid: int, group_id: int, num: int):
-        query = cls.query.where((cls.user_qq == uid) & (cls.group_id == group_id))
+        query = cls.query.where((cls.user_qq == uid) &
+                                (cls.group_id == group_id))
         query = query.with_for_update()
         my = await query.gino.first()
 
@@ -78,7 +84,8 @@ class TZBank(db.Model):
 
     @classmethod
     async def add(cls, uid: int, group_id: int, num: int):
-        query = cls.query.where((cls.user_qq == uid) & (cls.group_id == group_id))
+        query = cls.query.where((cls.user_qq == uid) &
+                                (cls.group_id == group_id))
         query = query.with_for_update()
         my = await query.gino.first()
 
@@ -89,7 +96,8 @@ class TZBank(db.Model):
 
     @classmethod
     async def get(cls, uid: int, group_id: int):
-        query = cls.query.where((cls.user_qq == uid) & (cls.group_id == group_id))
+        query = cls.query.where((cls.user_qq == uid) &
+                                (cls.group_id == group_id))
         query = query.with_for_update()
         my = await query.gino.first()
 
@@ -106,6 +114,76 @@ class TZBank(db.Model):
         else:
             query = await cls.query.where((cls.group_id == group_id)).gino.all()
         return query
+
+
+class TZBlack(db.Model):
+    __tablename__ = "tz_black"
+    id = db.Column(db.Integer(), primary_key=True)
+
+    uid = db.Column(db.BigInteger(), nullable=False)
+    from_qq = db.Column(db.BigInteger(), nullable=False)
+    gid = db.Column(db.BigInteger(), nullable=False)
+
+    money = db.Column(db.BigInteger(), default=0)
+    state = db.Column(db.Integer(), default=0)
+    initime = db.Column(db.DateTime(timezone=True), nullable=False)
+    #time = db.Column(db.DateTime(), server_default='now()')
+
+    _idx1 = db.Index("tz_black_idx1", "uid", "gid", "from_qq", unique=True)
+
+
+    # 获取24h内所有的黑钱
+    @classmethod
+    async def get_my_today_all(cls, uid, gid: int = None):
+        if gid == None:
+            return 0
+        query = cls.query.where(
+            cls.gid == gid and cls.uid == uid and cls.initime >= BeforeDay())
+        
+        data = await query.with_for_update().gino.all()
+        return sum([x.money for x in data])
+
+    # 获取24h内所有没有洗白的黑钱
+    @classmethod
+    async def get_my_today_all_isBlock(cls, uid, gid: int = None):
+        if gid == None:
+            return 0
+        query = cls.query.where(cls.gid == gid and cls.uid ==
+                                uid and cls.initime >= BeforeDay() and cls.state == 0)
+        
+        data = await query.with_for_update().gino.all()
+        return sum([x.money for x in data])
+
+    # 获取24h内 所有 来源于我的黑钱
+    @classmethod
+    async def get_Frome_today_all(cls, from_qq, gid: int = None):
+        if gid == None:
+            return 0
+        query = cls.query.where(
+            cls.gid == gid and cls.from_qq == from_qq and cls.initime >= BeforeDay())
+        
+        data = await query.with_for_update().gino.all()
+        return sum([x.money for x in data])
+
+    # 获取24h内 所有 来源于我 的还没洗白的黑钱
+    @classmethod
+    async def get_Frome_today_all_isBlock(cls, from_qq, gid: int = None):
+        if gid == None:
+            return 0
+        query = cls.query.where(cls.gid == gid and cls.from_qq ==
+                                from_qq and cls.initime >= BeforeDay() and cls.state == 0)
+        
+        data = await query.with_for_update().gino.all()
+        
+        return sum([x.money for x in data])
+
+    # 新增黑钱
+    @classmethod
+    async def add_blackMoney(cls, uid, from_qq, num, gid: int = None):
+        if gid == None:
+            return 0
+        await cls.create(uid=uid, gid=gid, from_qq=from_qq, money=num)
+
 
 # class TZlottery(db.Model):
 #     __tablename__ = "tz_lottery"
