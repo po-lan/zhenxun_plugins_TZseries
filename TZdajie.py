@@ -6,7 +6,7 @@ from models.group_member_info import GroupInfoUser
 from utils.image_utils import text2image
 from utils.message_builder import image
 from models.ban_user import BanUser
-from ._model import TZtreasury
+from ._model import TZtreasury, TZBlack
 from configs.config import Config
 from basic_plugins.shop.shop_handle.data_source import register_goods
 import nonebot
@@ -34,7 +34,7 @@ __plugin_settings__ = {
     "level": 5,
     "default_status": True,
     "limit_superuser": False,
-    "cmd": ["劫财 [@user]","劫色 [@user]"]
+    "cmd": ["劫财 [@user]", "劫色 [@user]"]
 
 }
 
@@ -44,10 +44,10 @@ __plugin_cd_limit__ = {
     "rst": "一直打劫是要被盯上的！120秒后再试试吧",
 }
 
-__plugin_imprisonment__={
+__plugin_imprisonment__ = {
     "cd": 300,
     "limit_type": "user",
-    "rst":"刚劫完一个又想来一个？你是想当后宫王呢？"
+    "rst": "刚劫完一个又想来一个？你是想当后宫王呢？"
 }
 
 __plugin_configs__ = {
@@ -58,13 +58,12 @@ __plugin_configs__ = {
     }}
 save = {}
 savetime = 1800
-duration ={}
+duration = {}
 durationtime = 60
 enableCD = True
 
 if enableCD:
     driver: Driver = nonebot.get_driver()
-
 
     @driver.on_startup
     async def _():
@@ -75,7 +74,7 @@ if enableCD:
             "电击枪", 500, "防守使用（被抢劫成功概率降为20%，自动使用）"
         )
 
-jc = on_command("#劫财", aliases={"#打劫"},priority=5, block=True)
+jc = on_command("#劫财", aliases={"#打劫"}, priority=5, block=True)
 
 
 @jc.handle()
@@ -97,7 +96,7 @@ async def _(event: GroupMessageEvent):
                         at_sender=True)
         return
 
-    #在被别人劫色的监禁cd中
+    # 在被别人劫色的监禁cd中
     if qq in duration.keys() and duration[qq] > time.time():
         await js.finish(f"""对方在别人手里，被别人保护的很好，不好下手。\n要不等{'%.2f' % (int(duration[qq] - time.time()) / 60 + 0.5)}分后回来看看？""",
                         at_sender=True)
@@ -137,7 +136,7 @@ async def _(event: GroupMessageEvent):
         text += f"这小伙子有家伙！)"
         await js.finish(text, at_sender=True)
         return
-    succes1 =succes*218//100
+    succes1 = succes*218//100
     # 双方菜刀 大概率对砍
     if random.randint(0, 120) > 100 and d1 and d2:
         f = random.randint(10, 30)
@@ -154,8 +153,22 @@ async def _(event: GroupMessageEvent):
 
         cost = int(f * xgold1 / 100)
         text += f"总掉落量{f}%({cost})"
+
+        # 新增 黑钱逻辑
+        myBlock = await TZBlack.get_my_today_all_isBlock(uid=uid, gid=group)
+        canAddBlock = 1000 - myBlock
+
+        # 判断 黑钱数量
+        if(canAddBlock < cost):
+            text += f"\n本堂主帮你追回了{cost - canAddBlock}"
+            cost = canAddBlock
+
+        # 先把钱扣了
         await BagUser.spend_gold(qq, group, cost)
-        await BagUser.add_gold(uid, group, cost)
+
+        # 对这笔黑钱进行记录
+        await TZBlack.add_blackMoney(uid=uid, from_qq=qq, num=cost, gid=group)
+
         await jc.finish(text, at_sender=True)
         return
 
@@ -172,9 +185,23 @@ async def _(event: GroupMessageEvent):
 
     if check > succes1:
         cost = int(0.5 * xgold1)
-        await BagUser.spend_gold(qq, group, cost)
         text = f'\n你把{name.user_name}五花大绑，并在{name.user_name}身上翻出{str(cost)}（50%）枚金币!!!\n'
-        await BagUser.add_gold(uid, group, cost)
+
+        # 新增 黑钱逻辑
+        myBlock = await TZBlack.get_my_today_all_isBlock(uid=uid, gid=group)
+        canAddBlock = 1000 - myBlock
+
+        # 判断 黑钱数量
+        if(canAddBlock < cost):
+            text += f"\n本堂主帮你追回了{cost - canAddBlock}"
+            cost = canAddBlock
+
+        # 先把钱扣了
+        await BagUser.spend_gold(qq, group, cost)
+
+        # 对这笔黑钱进行记录
+        await TZBlack.add_blackMoney(uid=uid, from_qq=qq, num=cost, gid=group)
+
         save[qq] = int(time.time() + savetime)
     elif check >= succes:
         isMax = False
@@ -191,8 +218,21 @@ async def _(event: GroupMessageEvent):
                 elif d2:
                     text += f'\n你晃动着菜刀，淡淡的问道就这？\n不过你从{name.user_name}身上一毛都没翻出来\n'
             save[qq] = int(time.time() + savetime)
+
+            # 新增 黑钱逻辑
+            myBlock = await TZBlack.get_my_today_all_isBlock(uid=uid, gid=group)
+            canAddBlock = 1000 - myBlock
+
+            # 判断 黑钱数量
+            if(canAddBlock < cost):
+                text += f"\n本堂主帮你追回了{cost - canAddBlock}"
+                cost = canAddBlock
+
+            # 先把钱扣了
             await BagUser.spend_gold(qq, group, cost)
-            await BagUser.add_gold(uid, group, cost)
+
+            # 对这笔黑钱进行记录
+            await TZBlack.add_blackMoney(uid=uid, from_qq=qq, num=cost, gid=group)
         else:
             num = int((100 - check) / 100 * cost)
             text = f'\n你一蹦而出，大喊打劫！\n{name.user_name}屈服于你淫威之下，拱手奉上{str(cost)}枚金币!!!\n不过逃跑时过于紧张丢掉了其中的{100 - check}%({num}金币)\n其中60%（{int(0.6 * num)}）已收集到小金库\n'
@@ -202,9 +242,24 @@ async def _(event: GroupMessageEvent):
                     text += f'不过你又提着刀找回丢失的{f}%（{int(num * f / 100)}）\n核算下来也就丢失了{num}'
                     num -= int(num * f / 100)
             save[qq] = int(time.time() + savetime)
+
             await TZtreasury.add(group, int(0.6 * num))
+
+            # 新增 黑钱逻辑
+            myBlock = await TZBlack.get_my_today_all_isBlock(uid=uid, gid=group)
+            canAddBlock = 1000 - myBlock
+
+            # 判断 黑钱数量
+            if(canAddBlock < cost):
+                text += f"\n本堂主帮你追回了{cost - canAddBlock}"
+                cost = canAddBlock
+
+            # 先把钱扣了
             await BagUser.spend_gold(qq, group, cost)
-            await BagUser.add_gold(uid, group, (cost - num))
+
+            # 对这笔黑钱进行记录
+            await TZBlack.add_blackMoney(uid=uid, from_qq=qq, num=cost, inNum=(cost - num), gid=group)
+
     else:
         if check < random.randint(succes*27//100, succes*36//100):
             l = random.randint(5, 15)
@@ -278,7 +333,7 @@ async def _(event: GroupMessageEvent):
         await js.finish(f"""对方刚被打劫过，被警方层层保护，不好下手。\n要不等{'%.2f' % (int(save[qq] - time.time()) / 60 + 0.5)}分后回来看看？""",
                         at_sender=True)
         return
-    #在被别人劫色的监禁cd中
+    # 在被别人劫色的监禁cd中
     if qq in duration.keys() and duration[qq] > time.time():
         await js.finish(f"""对方在别人手里，被别人保护的很好，不好下手。\n要不等{'%.2f' % (int(duration[qq] - time.time()) / 60 + 0.5)}分后回来看看？""",
                         at_sender=True)
@@ -296,7 +351,7 @@ async def _(event: GroupMessageEvent):
     if xgold1 > 10 and xgold2 > xgold1:
         await js.finish("这人手里有点东西，不会屈于你的淫威", at_sender=True)
 
-    #获取d1是否有电击枪
+    # 获取d1是否有电击枪
     if enableCD:
         d1 = await BagUser.get_property(qq, group)
         if "电击枪" in d1:
@@ -316,7 +371,7 @@ async def _(event: GroupMessageEvent):
         return
     d1 = await BagUser.get_property(qq, group)
     d2 = await BagUser.get_property(uid, group)
-    #检测d1和d2是否有菜刀，并影响成功率
+    # 检测d1和d2是否有菜刀，并影响成功率
     if enableCD:
         d1 = await BagUser.get_property(qq, group)
         if "菜刀" in d1:
@@ -333,7 +388,7 @@ async def _(event: GroupMessageEvent):
             check -= random.randint(5, 9)
         if d2:
             check += random.randint(3, 12)
-    
+
     cost = (min(xgold1, xgold2) * 0.75 + max(xgold1, xgold2) * 0.75) * 0.75
     if cost > xgold1:
         cost = xgold1 * 0.5
@@ -408,3 +463,60 @@ async def _(event: GroupMessageEvent):
         await BagUser.add_gold(uid, group, abs(xgold2 * 1.25))
     else:
         await xz.finish("你修复个锤子。你余额又不是负数")
+
+xb = on_command("#洗白", priority=5, block=True)
+
+
+@xb.handle()
+async def _(event: GroupMessageEvent):
+    gid = event.group_id
+    uid = event.user_id
+    # 获取 没有洗白 且没过期的黑钱
+    My24H_isBlock = await TZBlack.get_my_today_all_isBlock(uid, gid)
+
+    if My24H_isBlock == 0:
+        await xb.finish("你并没有什么值得洗白的", at_sender=True)
+        
+    if TZBlack.before_Time_Has(uid,gid):
+        await xb.finish("再等等吧，过会再洗吧", at_sender=True)
+
+    # 分开
+    MList = []
+
+    while(My24H_isBlock > 0):
+        if My24H_isBlock >= 50:
+            MList.append(50)
+            My24H_isBlock -= 50
+        else:
+            MList.append(My24H_isBlock)
+            My24H_isBlock = 0
+
+    Success = 0
+    unSuccess = 0
+
+    # 洗白
+    for x in MList:
+        if random.randint(1, 10) > 6:
+            Success += x
+        else:
+            unSuccess += x
+
+    # 成功洗白存入
+    await BagUser.add_gold(uid, gid, Success)
+    # 失败的存入 金库
+    await TZtreasury.add(gid, unSuccess*0.5)
+    # 打洗白结束标记
+    await TZBlack.all_toW(uid,gid)
+
+    text = f"本次成功洗白了：{Success}金币\n洗白失败的50%已存入金库"
+    await xb.finish(text, at_sender=True)
+
+# 超过24h 未洗白自动追回
+async def zh():
+    #获取可以进行追回的钱
+    Blist = await TZBlack.Over24_block_money()
+    for x in Blist:
+        await BagUser.add(x.from_qq,x.gid,x.money)
+    
+    #追回后进行标记
+    await TZBlack.Over24_block_isBack()
