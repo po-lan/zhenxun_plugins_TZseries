@@ -263,9 +263,9 @@ async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
         blk.set_false(gid)
         await ruchang.finish(f"\n金币不够还想来21点？\n您的金币余额为{str(await BagUser.get_gold(uid, gid))}", at_sender=True)
     # 检验赌注金额
-    if cost < (Ginfo[gid]["initCost"] / 2):
+    if cost < (Ginfo[gid]["initCost"] / 2) or cost > (Ginfo[gid]["initCost"] * 2):
         blk.set_false(gid)
-        await ruchang.finish(f"赌注不得小于开局玩家的1/2", at_sender=True)
+        await ruchang.finish(f"赌注不得小于开局玩家的1/2或大于开局玩家的两倍", at_sender=True)
 
     uname = event.sender.card if event.sender.card else event.sender.nickname
     blk.set_false(gid)

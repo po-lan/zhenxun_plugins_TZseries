@@ -160,7 +160,7 @@ async def _(event: GroupMessageEvent):
 
         # 判断 黑钱数量
         if(canAddBlock < cost):
-            text += f"\n本堂主帮你追回了{cost - canAddBlock}"
+            text += f"\n警察追回{cost - canAddBlock}还给了受害者"
             cost = canAddBlock
 
         # 先把钱扣了
@@ -193,7 +193,7 @@ async def _(event: GroupMessageEvent):
 
         # 判断 黑钱数量
         if(canAddBlock < cost):
-            text += f"\n本堂主帮你追回了{cost - canAddBlock}"
+            text += f"\n警察追回{cost - canAddBlock}还给了受害者"
             cost = canAddBlock
 
         # 先把钱扣了
@@ -225,7 +225,7 @@ async def _(event: GroupMessageEvent):
 
             # 判断 黑钱数量
             if(canAddBlock < cost):
-                text += f"\n本堂主帮你追回了{cost - canAddBlock}"
+                text += f"\n警察追回{cost - canAddBlock}还给了受害者"
                 cost = canAddBlock
 
             # 先把钱扣了
@@ -251,7 +251,7 @@ async def _(event: GroupMessageEvent):
 
             # 判断 黑钱数量
             if(canAddBlock < cost):
-                text += f"\n本堂主帮你追回了{cost - canAddBlock}"
+                text += f"\n警察追回{cost - canAddBlock}还给了受害者"
                 cost = canAddBlock
 
             # 先把钱扣了
@@ -477,7 +477,7 @@ async def _(event: GroupMessageEvent):
     if My24H_isBlock == 0:
         await xb.finish("你并没有什么值得洗白的", at_sender=True)
         
-    if TZBlack.before_Time_Has(uid,gid):
+    if await TZBlack.before_Time_Has(uid,gid):
         await xb.finish("再等等吧，过会再洗吧", at_sender=True)
 
     # 分开
