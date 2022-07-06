@@ -59,6 +59,11 @@ __plugin_configs__ = {
         "value": 1,
         "help": "金币倍率",
         "default_value": 1
+    },
+    "Lowest": {
+        "value": 4,
+        "help": "刮刮乐最低档位",
+        "default_value": 4
     }
 }
 
@@ -72,6 +77,7 @@ async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
     maxNum = Config.get_config("TZggl", "MAXNUM") or 50
     setJackpotLevel = Config.get_config("TZggl", "LEVEL") or -1
     Magnification = Config.get_config("TZggl", "MAGNIFICATION") or 1
+    Lowest = Config.get_config("TZggl", "LOWEST") or len(Jackpot_Values) - 1
     if is_number(msg) and int(msg) > 0:
         num = int(msg) if int(msg) <= maxNum else maxNum
     uid = event.user_id
@@ -96,7 +102,7 @@ async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
     sa = []
     spend = True
     # 计算每一档奖金
-    for index, Jackpot in enumerate(Jackpot_Values):
+    for index, Jackpot in enumerate(Jackpot_Values[:Lowest]):
         sa.append(0)
         for i in rl:
             if i > 0:
@@ -110,11 +116,11 @@ async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
         spend = False
 
     # 档位
-    level = sa.index(1) if max(sa) == 1 else len(Jackpot_Values) - 1
+    level = sa.index(1) if max(sa) == 1 else Lowest
     if setJackpotLevel != -1:
         level = setJackpotLevel
-    elif level != len(Jackpot_Values) - 1:
-        level = random.randint(level, len(Jackpot_Values) - 1)
+    elif level != Lowest:
+        level = random.randint(level, Lowest)
 
     # 调试用
     # text += f"当前档位：{level}\n"
@@ -201,6 +207,22 @@ async def _(arg: Message = CommandArg()):
     else:
         await level.finish(f"参数只能为数字且不为空", at_sender=True)
 
+# 最低档位调整
+Lowest = on_command("刮刮乐奖池最低档位设置", priority=5, permission=SUPERUSER, block=True)
+
+
+@Lowest.handle()
+async def _(arg: Message = CommandArg()):
+    msg = arg.extract_plain_text().strip()
+    if is_number(msg) and int(msg) >= 0:
+        if int(msg) < len(Jackpot_Values):
+            Config.set_config("TZggl", "LOWEST", int(msg))
+            await level.finish(f"最低档位已调整", at_sender=True)
+        else:
+            await level.finish(f"你的输入有问题\n最小为0\最大为{len(Jackpot_Values) - 1}", at_sender=True)
+    else:
+        await level.finish(f"参数只能为数字且不为空", at_sender=True)
+
 
 # 奖池显示
 levelShow = on_command("刮刮乐奖池查看", priority=5, permission=SUPERUSER, block=True)
@@ -213,6 +235,9 @@ async def _(arg: Message = CommandArg()):
         text = f"当前回本期望： 自动\n"
     else:
         text = f"当前回本期望： {list(Jackpots.keys())[le]}\n"
+    
+    lowest = Config.get_config("TZggl", "LOWEST")
+    text += f"当前最低档位：{lowest}\n"
 
     text += "刮刮乐所有奖池回本期望：\n\n"
     text += f"id:-1  期望：自动调节\n"
