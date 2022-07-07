@@ -334,20 +334,19 @@ async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
         Card = sortOut()
 
     # 机器人加入游戏
-    Gcost = sum([v["cost"] for v in Ginfo[gid]["players"].values()]
-                ) / (len(Ginfo[gid]["players"]))
-    Ginfo[gid]["players"][0] = {
-        "uid": 0,
-        "banker": True,
-        "BJ": False,
-        "uname": NICKNAME,
-        "cost": int(0)
-    }
+    if Ginfo[gid]["banker"]:
+        Ginfo[gid]["players"][0] = {
+            "uid": 0,
+            "banker": True,
+            "BJ": False,
+            "uname": NICKNAME,
+            "cost": int(0)
+        }
 
     # 基于牌组 分配
     if False:
         # 出千模式
-        # 
+        #
         # 还没想好怎么出千
         pass
     else:
@@ -510,45 +509,49 @@ async def _(bot: Bot, event: MessageEvent, arg: Message = CommandArg()):
 
 
 async def end(gid):
-    # 让机器人的牌先打到17
+    
     global Ginfo
-    while getSum(Ginfo[gid]["players"][0]["list"][:Ginfo[gid]["players"][0]["show"]]) < 17:
-        Ginfo[gid]["players"][0]["show"] += 1
+    # 获取庄UID
+    bankerUid = 0 if Ginfo[gid]["banker"] else Ginfo[gid]["startUid"]
+    
+    # 让 庄 的牌先打到17
+    while getSum(Ginfo[gid]["players"][bankerUid]["list"][:Ginfo[gid]["players"][bankerUid]["show"]]) < 17:
+        Ginfo[gid]["players"][bankerUid]["show"] += 1
 
-    BotS, BotBoom, text = 0, False, ""
+    bankerS, bankerBoom, text = 0, False, ""
 
     def isBOOM(T):
-        if T["uid"] == 0:
+        if T["banker"]:
             return False
         return getSum(T["list"][:T["show"]]) > 21
 
     def isNotBoom(T):
-        if T["uid"] == 0:
+        if T["banker"]:
             return False
         return getSum(T["list"][:T["show"]]) < 22
 
     def GetWinUser(T):
-        if T["uid"] == 0:
+        if T["banker"]:
             return False
         s = getSum(T["list"][:T["show"]])
         # 如果 炸了 直接 跳过
         if s > 21:
             return False
-        if BotBoom:
-            # 如果机器人炸了，所所有没炸的人，都赢
+        if bankerBoom:
+            # 如果 庄 炸了，所有没炸的人，都赢
             return True
         else:
-            # 机器人是黑杰克
-            if Ginfo[gid]["players"][0]["BJ"]:
+            # 庄 是黑杰克
+            if Ginfo[gid]["players"][bankerUid]["BJ"]:
                 return False
             else:
-                # 如果机器人 和玩家 点数相同 ，且 玩家牌比机器人少
-                if BotS == s and Ginfo[gid]["players"][0]["show"] > T["show"]:
+                # 如果 庄 和玩家 点数相同 ，且 玩家牌比 庄 少
+                if bankerS == s and Ginfo[gid]["players"][bankerUid]["show"] > T["show"]:
                     return True
                 else:
                     # 机器人和玩家点数不相同
                     # 黑杰克 或者 比机器人点数大的赢
-                    if T["BJ"] or s > BotS:
+                    if T["BJ"] or s > bankerS:
                         # 玩家中黑杰克赢
                         # 点数大于机器人的赢
                         return True
@@ -557,83 +560,77 @@ async def end(gid):
     for value in list(filter(isBOOM, Ginfo[gid]["players"].values())):
         text += f"{value['uname']}的牌是：{','.join(value['list'][:value['show']])} 炸了\n"
 
-    # 计算 玩家 最大的得分
-    ss = [getSum(v['list'][:v['show']]) for v in list(filter(isNotBoom, Ginfo[gid]["players"].values()))]
-    ss.append(0)
-    UserMax = max(ss)
-
     gold = 0
     # 收集金币0
     for v in list(Ginfo[gid]["players"].values()):
         gold += v["cost"]
+        
+     # 计算 玩家 最大的得分
+    UserMax = max([getSum(v['list'][:v['show']]) for v in list(filter(isNotBoom, Ginfo[gid]["players"].values()))].append(0))
 
+    #出千
     if (Ginfo[gid]["gold"] < gold / 2 or len(Ginfo[gid]["players"].values()) > 4) and (
-            Config.get_config("TZ21", "FC") and Ginfo[gid]["players"][0]["BJ"] == False):
-        # 出千
-        check = random.randint(1, 3)
-        if check == 1:
-            l1 = list(Ginfo[gid]["players"][0]["list"])
-            l1[-1], l1[-2] = l1[-2], l1[-1]
-            # 如果 最后两位交换之后 正好21
-            if getSum(l1, True) == 21:
-                Ginfo[gid]["players"][0]["list"] = l1
-                Ginfo[gid]["players"][0]["show"] = len(l1)
-            elif getSum(l1[:-1], True) == 21:
-                Ginfo[gid]["players"][0]["list"] = l1[:-1]
-                Ginfo[gid]["players"][0]["show"] = len(l1[:-1])
-
-        if check == 2:
-            # 换底牌，是牌组跟接近21
-            T1 = Ginfo[gid]["players"][0]["list"][:2]
-            Ginfo[gid]["freeCard"].append(Ginfo[gid]["players"][0]["list"][2:])
-            if UserMax != 21 and getSum(T1) > 16:
-                x = 21 - getSum(T1)
-                isNotOK = True
-                while isNotOK and x > 1:
-                    Card = "A" if x == 1 else x
-                    if Card in Ginfo[gid]["freeCard"]:
-                        T1.append(Card)
-                        Ginfo[gid]["freeCard"].remove(Card)
-                        isNotOK = False
-                    else:
-                        x -= 1
-
-            while getSum(T1) < UserMax:
-                x = Ginfo[gid]["freeCard"][0]
-                T1.append(x)
-                Ginfo[gid]["freeCard"].remove(x)
-
-            Ginfo[gid]["players"][0]["list"] = T1
-            Ginfo[gid]["players"][0]["show"] = len(T1)
-
-        if 17 > getSum(Ginfo[gid]["players"][0]["list"], True) > 21:
+            Config.get_config("TZ21", "FC") and Ginfo[gid]["players"][bankerUid]["BJ"] == False) and bankerUid == 0:
+        
+        isNotOK = False
+        
+        T1 = Ginfo[gid]["players"][0]["list"][:1]
+        Ginfo[gid]["freeCard"].append(Ginfo[gid]["players"][0]["list"][1:])
+        
+        if UserMax != 21 and getSum(T1) < 16:
+            x = 21 - getSum(T1)
+            isNotOK = True
+            while isNotOK and x > 1:
+                Card = "A" if x == 1 else x
+                if Card in Ginfo[gid]["freeCard"]:
+                    T1.append(Card)
+                    Ginfo[gid]["freeCard"].remove(Card)
+                    isNotOK = False
+                else:
+                    x -= 1
+        
+        Ginfo[gid]["players"][0]["list"] = T1
+        Ginfo[gid]["players"][0]["show"] = len(T1)
+        
+        
+        if getSum(Ginfo[gid]["players"][0]["list"]) < UserMax:
             T1 = Ginfo[gid]["players"][0]["list"][:2]
             T2 = []
             i = 0
-            Ginfo[gid]["freeCard"].append(Ginfo[gid]["players"][0]["list"][2:])
+            
+            Ginfo[gid]["freeCard"].append(Ginfo[gid]["players"][0]["list"][1:])
 
             def aNew():
                 T2 = list(T1) + random.choices(Ginfo[gid]["freeCard"], k=3)
-                return 21 < getSum(T2) <= UserMax
-
+                
+                showList = 2
+                
+                while getSum(T2[:showList]) < 17 and showList <= 5:
+                    showList += 1
+                
+                T2 = T2[:showList]
+                
+                return getSum(T2) <= UserMax
+            
             while aNew() and i < 200:
                 i += 1
                 Ginfo[gid]["players"][0]["list"] = T2
                 Ginfo[gid]["players"][0]["show"] = len(T2)
 
+
     # 提取没炸的人
     for value in list(filter(isNotBoom, Ginfo[gid]["players"].values())):
         text += f"{value['uname']}的牌是：{','.join(value['list'][:value['show']])}\n"
 
-    # 判断机器人是炸了还是赢了
-    BCard = Ginfo[gid]["players"][0]["list"][:Ginfo[gid]["players"][0]["show"]]
-    BotS = getSum(BCard)
+    # 判断 庄 是炸了还是赢了
+    bankerCard = Ginfo[gid]["players"][bankerUid]["list"][:Ginfo[gid]["players"][bankerUid]["show"]]
+    bankerS = getSum(bankerCard)
 
-    if BotS < 22:
-        text = f"{NICKNAME}的牌是：{','.join(BCard)},总点数为{BotS}\n" + text
+    if bankerS < 22:
+        text = f"{NICKNAME}的牌是：{','.join(bankerCard)},总点数为{bankerS}\n" + text
     else:
-        text = f"{NICKNAME}的牌是：{','.join(BCard)},总点数为{BotS}，炸了\n" + text
-        BotBoom = True
+        text = f"{NICKNAME}的牌是：{','.join(bankerCard)},总点数为{bankerS}，炸了\n" + text
+        bankerBoom = True
         # 计算玩家胜利
 
     winUsers = list(filter(GetWinUser, Ginfo[gid]["players"].values()))
@@ -821,6 +818,7 @@ def sortOut():
         # 随机两位调换
         if random.randint(1, 20) <= chance:
             keys = random.choices(range(len(v["list"]) - 1), k=2)
-            v["list"][keys[0]], v["list"][keys[1]] = v["list"][keys[1]], v["list"][keys[0]]
+            v["list"][keys[0]], v["list"][keys[1]
+                                          ] = v["list"][keys[1]], v["list"][keys[0]]
 
     return T
