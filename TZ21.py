@@ -7,11 +7,9 @@ from utils.message_builder import image
 from utils.image_utils import text2image
 from nonebot.permission import SUPERUSER
 from configs.config import NICKNAME, Config
-from nonebot_plugin_apscheduler import scheduler
-from utils.utils import is_number, UserBlockLimiter
+from utils.utils import is_number, UserBlockLimiter, scheduler
 from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, MessageEvent, Message, MessageSegment
 from ._model import TZtreasury
-
 
 __zx_plugin_name__ = "21点"
 __plugin_usage__ = f"""
@@ -43,28 +41,34 @@ __plugin_settings__ = {
 __plugin_configs__ = {
     "FC": {
         "value": True,
-        "name":"流水控制",
+        "name": "流水控制",
         "help": "通过算牌等 使群内不会使用21点刷钱过快",
         "default_value": True
     },
     "CHANCE": {
         "value": 3,
         "help": "0-10;0为关",
-        "name":"开局前随机换牌概率",
+        "name": "开局前随机换牌概率",
         "default_value": 3
     }
 }
 
-
 Ginfo = {}
 blk = UserBlockLimiter()
+
 
 def getStartUserName(gid):
     global Ginfo
     return Ginfo[gid]["players"][Ginfo[gid]["startUid"]]["uname"]
 
-#定时刷新
-async def update():
+
+# 定时刷新
+@scheduler.scheduled_job(
+    "cron",
+    hour=0,
+    minute=1,
+)
+async def _():
     global Ginfo
     for gid in Ginfo:
         # gold = Ginfo[gid]["gold"]
@@ -77,15 +81,9 @@ async def update():
             except:
                 pass
         """
-        #归零
+        # 归零
         Ginfo[gid]["gold"] = 0
 
-scheduler.add_job(
-    update,
-    "cron",
-    hour="*/2",
-    id="TZ21_gold_0",
-)
 
 dq = on_command("21点打钱", priority=5, block=True)
 
@@ -99,11 +97,12 @@ napai = on_command("拿牌", priority=5, block=True)
 
 tingpai = on_command("停牌", priority=5, block=True)
 
-jiesuan = on_command("21点结算", aliases={"21点结束"},priority=5, block=True)
+jiesuan = on_command("21点结算", aliases={"21点结束"}, priority=5, block=True)
 
 FC = on_command("21点流水控制", priority=5, permission=SUPERUSER, block=True)
 
 chance = on_command("开局前随机换牌概率", priority=5, permission=SUPERUSER, block=True)
+
 
 @dq.handle()
 async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
@@ -138,7 +137,6 @@ async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
         await dq.finish(f"如果你是要给{NICKNAME}打钱记得带上金额啊", at_sender=True)
 
 
-
 @opendian.handle()
 async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
     gid = event.group_id
@@ -152,21 +150,22 @@ async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
     uname = event.sender.card if event.sender.card else event.sender.nickname
     # 判断上一场是否结束
     if gid in Ginfo:
-        #有这个群的数据
+        # 有这个群的数据
         if Ginfo[gid]["state"] != 0:
             blk.set_false(gid)
         if Ginfo[gid]["state"] == 1:
-            #state : 已开场，未开局
+            # state : 已开场，未开局
             await opendian.finish(f"上一场21点还未开始，请输入入场\n")
         if Ginfo[gid]["state"] == 2:
-            #state : 已开局，未结束
+            # state : 已开局，未结束
             await opendian.finish(f"上一场21点还未结束，请等待\n")
-
+    # 玩家是否为庄
+    banker = False
+    msg = arg.extract_plain_text().strip().split()
     # 判断入场赌注
-    msg = arg.extract_plain_text().strip()
     if msg:
-        if is_number(msg) and int(msg) > 0:
-            cost = int(msg)
+        if is_number(msg[0]) and int(msg[0]) > 0:
+            cost = int(msg[0])
             if cost > 10000:
                 blk.set_false(gid)
                 await opendian.finish(f"{NICKNAME}不接受10000以上的赌注哦", at_sender=True)
@@ -176,19 +175,26 @@ async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
         else:
             blk.set_false(gid)
             await opendian.finish(f"赌注是数字啊喂", at_sender=True)
+        if len(msg) == 2:
+            if msg[1] == '庄':
+                banker = True
+            else:
+                await opendian.finish(f"参数错误，请查看帮助后重试", at_sender=True)
     else:
         blk.set_false(gid)
-        await opendian.finish(f"请输入你的赌注", at_sender=True)
+        await opendian.finish(f"没有获取到参数，请查看帮助后重试", at_sender=True)
 
     # 输多了 就摆烂
     if gid in Ginfo and -14514 > Ginfo[gid]["gold"]:
         await opendian.finish(f"{NICKNAME}输的有点多了，{NICKNAME}去打工赚钱陪你们玩")
 
     # 判断 是否够用
-    if await BagUser.get_gold(uid, gid) < cost:
+    user_gold = await BagUser.get_gold(uid, gid)
+    if user_gold < cost:
         blk.set_false(gid)
         await opendian.finish(f"\n金币不够还想来21点？\n您的金币余额为{str(await BagUser.get_gold(uid, gid))}", at_sender=True)
-
+    if user_gold < 100 and banker:
+        await opendian.finish(f"\n庄家至少需要100余额\n您的金币余额为{str(await BagUser.get_gold(uid, gid))}", at_sender=True)
     if gid not in Ginfo:
         Ginfo[gid] = {"gold": 0, "state": 1}
 
@@ -198,11 +204,12 @@ async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
     Ginfo[gid]["startUid"] = uid
     Ginfo[gid]["freeCard"] = []
     Ginfo[gid]["time"] = time.time()
-
-    await ruchangx(gid, uid, uname, cost)
+    Ginfo[gid]["banker"] = banker
+    await ruchangx(gid, uid, uname, cost, banker)
     blk.set_false(gid)
+    if banker:
+        await opendian.finish(f'{uname}发起了一场21点挑战\n{uname}为庄家入场')
     await opendian.finish(f'{uname}发起了一场21点挑战\n{uname}已自动入场')
-
 
 
 @ruchang.handle()
@@ -210,24 +217,24 @@ async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
     global Ginfo
     gid = event.group_id
     uid = event.user_id
-    #阻断 防止触发过快
+    # 阻断 防止触发过快
     if blk.check(gid):
         await ruchang.finish()
     blk.set_true(gid)
 
     # 判断上一场是否结束
     if gid in Ginfo:
-        #有这个群的数据
+        # 有这个群的数据
         if Ginfo[gid]["state"] == 0:
-            #state : 未开场
+            # state : 未开场
             blk.set_false(gid)
             await opendian.finish(f"请先开场、开场后会自动入场")
         if Ginfo[gid]["state"] == 2:
-            #state : 已开局，未结束
+            # state : 已开局，未结束
             blk.set_false(gid)
             await opendian.finish(f"上一场21点还未结束，请等待")
     else:
-        #没有本群数据
+        # 没有本群数据
         blk.set_false(gid)
         await opendian.finish(f"请先开场、开场后会自动入场")
 
@@ -263,9 +270,9 @@ async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
         blk.set_false(gid)
         await ruchang.finish(f"\n金币不够还想来21点？\n您的金币余额为{str(await BagUser.get_gold(uid, gid))}", at_sender=True)
     # 检验赌注金额
-    if cost < (Ginfo[gid]["initCost"] / 2):
+    if cost < (Ginfo[gid]["initCost"] / 2) or cost > (Ginfo[gid]["initCost"] * 2):
         blk.set_false(gid)
-        await ruchang.finish(f"赌注不得小于开局玩家的1/2", at_sender=True)
+        await ruchang.finish(f"赌注不得小于开局玩家的1/2或大于开局玩家的两倍", at_sender=True)
 
     uname = event.sender.card if event.sender.card else event.sender.nickname
     blk.set_false(gid)
@@ -276,20 +283,23 @@ async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
     for user in Ginfo[gid]["players"].values():
         text += f'\n\t·{user["uname"]}'
 
-    #发送
-    await ruchang.send(image(b64=(await text2image(text, color="#f9f6f2", padding=10)).pic2bs4()),at_sender = True)
+    # 发送
+    await ruchang.send(image(b64=(await text2image(text, color="#f9f6f2", padding=10)).pic2bs4()), at_sender=True)
+
 
 # 入场 记录
-async def ruchangx(gid: int, uid: int, uname: str,  cost: int):
+async def ruchangx(gid: int, uid: int, uname: str, cost: int, banker: bool = False):
     global Ginfo
     Ginfo[gid]["players"][uid] = {
         "uname": uname,
         "cost": cost,
         "BJ": False,
-        "uid": uid
+        "uid": uid,
+        "banker": banker
     }
     Ginfo[gid]["time"] = time.time()
-    await BagUser.spend_gold(uid, gid, cost)
+    if not banker:
+        await BagUser.spend_gold(uid, gid, cost)
 
 
 # 开局
@@ -300,15 +310,15 @@ async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
     uid = event.user_id
     # 判断上一场是否结束
     if gid in Ginfo:
-        #有这个群的数据
+        # 有这个群的数据
         if Ginfo[gid]["state"] == 0:
-            #state : 未开场
+            # state : 未开场
             await opendian.finish(f"请先开场、开场后等待他人入场结束后在输入")
         if Ginfo[gid]["state"] == 2:
-            #state : 已开局，未结束
+            # state : 已开局，未结束
             await opendian.finish(f"上一场21点还未结束，请等待")
     else:
-        #没有本群数据
+        # 没有本群数据
         await opendian.finish(f"请先开场、开场后等待他人入场结束后在输入")
 
     # 判断是不是开场的人发的开局
@@ -328,6 +338,7 @@ async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
                 ) / (len(Ginfo[gid]["players"]))
     Ginfo[gid]["players"][0] = {
         "uid": 0,
+        "banker": True,
         "BJ": False,
         "uname": NICKNAME,
         "cost": int(0)
@@ -345,28 +356,29 @@ async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
             Ginfo[gid]["players"][key] = {
                 **Card[i], **Ginfo[gid]["players"][key]}
 
-    #回收空牌
+    # 回收空牌
     for v in Card[len(Ginfo[gid]["players"]):]:
         for v in v["list"]:
             Ginfo[gid]["freeCard"].append(v)
-
 
     # 初次算点
     for v in Ginfo[gid]["players"].values():
         if getSum(v["list"][:v["show"]]) == 21:
             Ginfo[gid]["players"][v["uid"]]["isEnd"] = True
             Ginfo[gid]["players"][v["uid"]]["BJ"] = True
-
     text = "现已开局，无法再入场\n"
     for v in Ginfo[gid]["players"].values():
-        text += f"{v['uname']} 的牌为：{','.join(v['list'][:v['show']])}"
-        if v["BJ"]:
-            text += " 已BlackJack，"
+        if v['banker']:
+            text += f"\n庄家({v['uname']}) 的牌为：暗牌,{v['list'][0]}"
+            text += f"\n已知点数为：{getSum(v['list'][:1])}\n\n"
+        else:
+            text += f"{v['uname']} 的牌为：{','.join(v['list'][:v['show']])}"
+            if v["BJ"]:
+                text += " 已BlackJack，"
 
-        text += f"总点数为：{getSum(v['list'][:v['show']])}\n"
+            text += f"总点数为：{getSum(v['list'][:v['show']])}\n"
 
     await opendian.finish(image(b64=(await text2image(text, color="#f9f6f2", padding=10)).pic2bs4()))
-
 
 
 @napai.handle()
@@ -374,27 +386,27 @@ async def _(bot: Bot, event: MessageEvent, arg: Message = CommandArg()):
     global Ginfo
     uid = event.user_id
     gid = event.group_id
-    #阻断 防止过快
+    # 阻断 防止过快
     if blk.check(gid):
         await napai.finish()
     blk.set_true(gid)
     # 判断上一场是否结束
     if gid in Ginfo:
-        #有这个群的数据
+        # 有这个群的数据
         if Ginfo[gid]["state"] == 0:
-            #state : 未开场
+            # state : 未开场
             blk.set_false(gid)
             await opendian.finish(f"请先开场、开局后才能拿牌")
         if Ginfo[gid]["state"] == 1:
-            #state : 已开局，未结束
+            # state : 已开局，未结束
             blk.set_false(gid)
             await opendian.finish(f"请先开局、开局后才能拿牌")
     else:
-        #没有本群数据
+        # 没有本群数据
         blk.set_false(gid)
         await opendian.finish(f"请先开场、开局后才能拿牌")
 
-    #如果玩家不在列表里
+    # 如果玩家不在列表里
     if uid not in Ginfo[gid]["players"]:
         blk.set_false(gid)
         await opendian.finish(f"无关人员不要捣乱\n")
@@ -425,7 +437,6 @@ async def _(bot: Bot, event: MessageEvent, arg: Message = CommandArg()):
     await napai.finish(image(b64=(await text2image(text, color="#f9f6f2", padding=10)).pic2bs4()))
 
 
-
 @tingpai.handle()
 async def _(bot: Bot, event: MessageEvent, arg: Message = CommandArg()):
     global Ginfo
@@ -439,12 +450,11 @@ async def _(bot: Bot, event: MessageEvent, arg: Message = CommandArg()):
     else:
         await tingpai.finish("你都没开场过，停个锤子")
 
-    #如果玩家不在列表里
+    # 如果玩家不在列表里
     if uid not in Ginfo[gid]["players"]:
         await opendian.finish(f"无关人员不要捣乱\n")
 
     Ginfo[gid]["players"][uid]["isEnd"] = True
-
 
 
 @jiesuan.handle()
@@ -459,7 +469,7 @@ async def _(bot: Bot, event: MessageEvent, arg: Message = CommandArg()):
     else:
         await jiesuan.finish("你都没开场过，结束个锤子")
 
-    #如果玩家不在列表里
+    # 如果玩家不在列表里
     if uid not in Ginfo[gid]["players"] and str(uid) not in list(bot.config.superusers):
         await opendian.finish(f"无关人员不要捣乱\n")
 
@@ -471,7 +481,7 @@ async def _(bot: Bot, event: MessageEvent, arg: Message = CommandArg()):
     def notEndUser(T):
         notEndUserList = []
         # 超时后可以直接结束
-        if  time.time() - Ginfo[gid]["time"]> 90:
+        if time.time() - Ginfo[gid]["time"] > 90:
             return []
 
         # 遍历每一个玩家
@@ -480,7 +490,7 @@ async def _(bot: Bot, event: MessageEvent, arg: Message = CommandArg()):
             if v["uid"] != 0 and v["uid"] != Ginfo[gid]["startUid"] and v["isEnd"] == False:
                 notEndUserList.append(v["uid"])
 
-        #返回 列表
+        # 返回 列表
         return notEndUserList
 
     notList = notEndUser(Ginfo[gid]["players"].values())
@@ -491,7 +501,7 @@ async def _(bot: Bot, event: MessageEvent, arg: Message = CommandArg()):
         # 列出用户
         for uid in notList:
             user = Ginfo[gid]["players"][uid]
-            text += f'\n·{user["uname"]}({getSum(user["list"][:user["show"]],True)})'
+            text += f'\n·{user["uname"]}({getSum(user["list"][:user["show"]], True)})'
 
         await jiesuan.finish(image(b64=(await text2image(text, color="#f9f6f2", padding=10)).pic2bs4()))
 
@@ -521,28 +531,27 @@ async def end(gid):
         if T["uid"] == 0:
             return False
         s = getSum(T["list"][:T["show"]])
-        #如果 炸了 直接 跳过
+        # 如果 炸了 直接 跳过
         if s > 21:
             return False
         if BotBoom:
-            #如果机器人炸了，所所有没炸的人，都赢
+            # 如果机器人炸了，所所有没炸的人，都赢
             return True
         else:
-            #机器人是黑杰克
+            # 机器人是黑杰克
             if Ginfo[gid]["players"][0]["BJ"]:
                 return False
             else:
-                #如果机器人 和玩家 点数相同 ，且 玩家牌比机器人少
+                # 如果机器人 和玩家 点数相同 ，且 玩家牌比机器人少
                 if BotS == s and Ginfo[gid]["players"][0]["show"] > T["show"]:
                     return True
                 else:
-                    #机器人和玩家点数不相同
+                    # 机器人和玩家点数不相同
                     # 黑杰克 或者 比机器人点数大的赢
                     if T["BJ"] or s > BotS:
-                        #玩家中黑杰克赢
-                        #点数大于机器人的赢
+                        # 玩家中黑杰克赢
+                        # 点数大于机器人的赢
                         return True
-
 
     # 先计算炸了的
     for value in list(filter(isBOOM, Ginfo[gid]["players"].values())):
@@ -554,13 +563,14 @@ async def end(gid):
     UserMax = max(ss)
 
     gold = 0
-    #收集金币0
+    # 收集金币0
     for v in list(Ginfo[gid]["players"].values()):
         gold += v["cost"]
 
-    if (Ginfo[gid]["gold"] < gold / 2 or len(Ginfo[gid]["players"].values()) > 4) and (Config.get_config("TZ21", "FC") and Ginfo[gid]["players"][0]["BJ"] == False):
-        #出千
-        check = random.randint(1,3)
+    if (Ginfo[gid]["gold"] < gold / 2 or len(Ginfo[gid]["players"].values()) > 4) and (
+            Config.get_config("TZ21", "FC") and Ginfo[gid]["players"][0]["BJ"] == False):
+        # 出千
+        check = random.randint(1, 3)
         if check == 1:
             l1 = list(Ginfo[gid]["players"][0]["list"])
             l1[-1], l1[-2] = l1[-2], l1[-1]
@@ -573,7 +583,7 @@ async def end(gid):
                 Ginfo[gid]["players"][0]["show"] = len(l1[:-1])
 
         if check == 2:
-            #换底牌，是牌组跟接近21
+            # 换底牌，是牌组跟接近21
             T1 = Ginfo[gid]["players"][0]["list"][:2]
             Ginfo[gid]["freeCard"].append(Ginfo[gid]["players"][0]["list"][2:])
             if UserMax != 21 and getSum(T1) > 16:
@@ -596,14 +606,14 @@ async def end(gid):
             Ginfo[gid]["players"][0]["list"] = T1
             Ginfo[gid]["players"][0]["show"] = len(T1)
 
-        if getSum(Ginfo[gid]["players"][0]["list"], True) > 21:
+        if 17 > getSum(Ginfo[gid]["players"][0]["list"], True) > 21:
             T1 = Ginfo[gid]["players"][0]["list"][:2]
             T2 = []
             i = 0
             Ginfo[gid]["freeCard"].append(Ginfo[gid]["players"][0]["list"][2:])
 
             def aNew():
-                T2 = list(T1) + random.choices(Ginfo[gid]["freeCard"],k=3)
+                T2 = list(T1) + random.choices(Ginfo[gid]["freeCard"], k=3)
                 return 21 < getSum(T2) <= UserMax
 
             while aNew() and i < 200:
@@ -611,22 +621,13 @@ async def end(gid):
                 Ginfo[gid]["players"][0]["list"] = T2
                 Ginfo[gid]["players"][0]["show"] = len(T2)
 
-    else:
-        # 按照玩家的得分 让机器人摸牌
-        while UserMax >= getSum(Ginfo[gid]["players"][0]["list"][:Ginfo[gid]["players"][0]["show"]]) < 22:
-            if getSum(Ginfo[gid]["players"][0]["list"][:Ginfo[gid]["players"][0]["show"]]) >= 21 or len(
-                    Ginfo[gid]["players"][0]["list"]) == Ginfo[gid]["players"][0]["show"]:
-                break
-            Ginfo[gid]["players"][0]["show"] += 1
-
-    #提取没炸的人
+    # 提取没炸的人
     for value in list(filter(isNotBoom, Ginfo[gid]["players"].values())):
         text += f"{value['uname']}的牌是：{','.join(value['list'][:value['show']])}\n"
 
     # 判断机器人是炸了还是赢了
     BCard = Ginfo[gid]["players"][0]["list"][:Ginfo[gid]["players"][0]["show"]]
     BotS = getSum(BCard)
-
 
     if BotS < 22:
         text = f"{NICKNAME}的牌是：{','.join(BCard)},总点数为{BotS}\n" + text
@@ -637,15 +638,15 @@ async def end(gid):
 
     winUsers = list(filter(GetWinUser, Ginfo[gid]["players"].values()))
     if len(winUsers) > 0:
-        #胜利的用户
+        # 胜利的用户
         text += f'\n本场胜利的：'
         for v in winUsers:
-            text += f'\n{v["uname"]} 赢得了 {v["cost"]}金币--税{int(v["cost"]*0.2)}'
-            await TZtreasury.add(gid,int(v["cost"]*0.2))
-            await BagUser.add_gold(v["uid"], gid, int(v["cost"]*1.8))
-            gold -= v["cost"]*2
+            text += f'\n{v["uname"]} 赢得了 {v["cost"]}金币--税{int(v["cost"] * 0.2)}'
+            await TZtreasury.add(gid, int(v["cost"] * 0.2))
+            await BagUser.add_gold(v["uid"], gid, int(v["cost"] * 1.8))
+            gold -= v["cost"] * 2
     else:
-        #没人胜利
+        # 没人胜利
         text += f"{NICKNAME} 收走了全部的金币"
 
     #  金币 加入累计
@@ -660,11 +661,13 @@ async def end(gid):
     # 恢复状态
     Ginfo[gid]["state"] = 0
 
-    await jiesuan.finish(message=image(b64=(await text2image(text, color="#f9f6f2", padding=10)).pic2bs4()), group_id=gid)
+    await jiesuan.finish(message=image(b64=(await text2image(text, color="#f9f6f2", padding=10)).pic2bs4()),
+                         group_id=gid)
 
-#控制部分
 
-#流水控制
+# 控制部分
+
+# 流水控制
 @FC.handle()
 async def _(arg: Message = CommandArg()):
     msg = arg.extract_plain_text().strip()
@@ -678,7 +681,6 @@ async def _(arg: Message = CommandArg()):
         await chance.finish(f"参数只能为开或关", at_sender=True)
 
 
-
 # 奖池调整
 @chance.handle()
 async def _(arg: Message = CommandArg()):
@@ -686,12 +688,11 @@ async def _(arg: Message = CommandArg()):
     if is_number(msg) and int(msg) > -1:
         if int(msg) < 11:
             Config.set_config("TZ21", "CHANCE", int(msg))
-            await chance.finish(f"概率已调整为{int(msg)*10}%", at_sender=True)
+            await chance.finish(f"概率已调整为{int(msg) * 10}%", at_sender=True)
         else:
             await chance.finish(f"你的输入有问题\n最小为0最大为10", at_sender=True)
     else:
         await chance.finish(f"参数只能为数字且不为空", at_sender=True)
-
 
 
 # 生成初始牌组
@@ -734,6 +735,7 @@ def startCard():
 
     return T0
 
+
 # 计算列表和
 def getSum(Tl, sumAll=True):
     result = 0
@@ -756,6 +758,7 @@ def getSum(Tl, sumAll=True):
         result = sum([getNumber(v) for v in (Tl[:-1])])
         return False, aSave(Tl[:-1], result)
 
+
 # 字符 转 数字
 def getNumber(key):
     try:
@@ -764,6 +767,7 @@ def getNumber(key):
         if key == "A":
             return 11
         return 10
+
 
 # 整理 列表组
 def sortOut():
