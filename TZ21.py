@@ -566,7 +566,7 @@ async def end(gid):
         gold += v["cost"]
         
      # 计算 玩家 最大的得分
-    UserMax = max([getSum(v['list'][:v['show']]) for v in list(filter(isNotBoom, Ginfo[gid]["players"].values()))].append(0))
+    UserMax = max([0,getSum(v['list'][:v['show']]) for v in list(filter(isNotBoom, Ginfo[gid]["players"].values()))])
 
     #出千
     if (Ginfo[gid]["gold"] < gold / 2 or len(Ginfo[gid]["players"].values()) > 4) and (
