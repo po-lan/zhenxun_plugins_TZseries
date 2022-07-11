@@ -238,8 +238,8 @@ async def _(event: GroupMessageEvent):
             await TZBlack.add_blackMoney(uid=uid, from_qq=qq, num=cost, gid=group)
             
         else:
-            num = int((100 - check) / 100 * cost)
-            text = f'\n你一蹦而出，大喊打劫！\n{name.user_name}屈服于你淫威之下，拱手奉上{str(cost)}枚金币!!!\n不过逃跑时过于紧张丢掉了其中的{100 - check}%({num}金币)\n其中60%（{int(0.6 * num)}）已收集到小金库\n'
+            num = abs(int((100 - check) / 100 * cost))
+            text = f'\n你一蹦而出，大喊打劫！\n{name.user_name}屈服于你淫威之下，拱手奉上{str(cost)}枚金币!!!\n不过逃跑时过于紧张丢掉了其中的{abs(100 - check)}%({num}金币)\n其中60%（{int(0.6 * num)}）已收集到小金库\n'
             if d2:
                 f = random.randint(15, 35)
                 text += f'不过你又提着刀找回丢失的{f}%（{int(num * f / 100)}）\n核算下来也就丢失了{num}'
