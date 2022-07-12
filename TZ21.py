@@ -137,6 +137,7 @@ async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
         await dq.finish(f"如果你是要给{NICKNAME}打钱记得带上金额啊", at_sender=True)
 
 
+
 @opendian.handle()
 async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
     gid = event.group_id
@@ -334,7 +335,7 @@ async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
         Card = sortOut()
 
     # 机器人加入游戏
-    if Ginfo[gid]["banker"]:
+    if not Ginfo[gid]["banker"]:
         Ginfo[gid]["players"][0] = {
             "uid": 0,
             "banker": True,
@@ -512,7 +513,9 @@ async def end(gid):
     
     global Ginfo
     # 获取庄UID
-    bankerUid = 0 if Ginfo[gid]["banker"] else Ginfo[gid]["startUid"]
+    bankerUid =  Ginfo[gid]["startUid"] if Ginfo[gid]["banker"] else 0
+
+    print(bankerUid)
     
     # 让 庄 的牌先打到17
     while getSum(Ginfo[gid]["players"][bankerUid]["list"][:Ginfo[gid]["players"][bankerUid]["show"]]) < 17:
@@ -566,9 +569,7 @@ async def end(gid):
         gold += v["cost"]
         
      # 计算 玩家 最大的得分
-    sss = [getSum(v['list'][:v['show']]) for v in list(filter(isNotBoom, Ginfo[gid]["players"].values()))]
-    sss.append(0)
-    UserMax = max(sss)
+    UserMax = max([0]+[getSum(v['list'][:v['show']]) for v in list(filter(isNotBoom, Ginfo[gid]["players"].values()))])
 
     #出千
     if (Ginfo[gid]["gold"] < gold / 2 or len(Ginfo[gid]["players"].values()) > 4) and (
@@ -576,10 +577,10 @@ async def end(gid):
         
         isNotOK = False
         
-        T1 = Ginfo[gid]["players"][0]["list"][:1]
-        Ginfo[gid]["freeCard"].append(Ginfo[gid]["players"][0]["list"][1:])
+        T1 = Ginfo[gid]["players"][0]["list"][:2]
         
         if UserMax != 21 and getSum(T1) < 16:
+            Ginfo[gid]["freeCard"].append(Ginfo[gid]["players"][0]["list"][2:])
             x = 21 - getSum(T1)
             isNotOK = True
             while isNotOK and x > 1:
@@ -591,19 +592,19 @@ async def end(gid):
                 else:
                     x -= 1
         
-        Ginfo[gid]["players"][0]["list"] = T1
-        Ginfo[gid]["players"][0]["show"] = len(T1)
+            Ginfo[gid]["players"][0]["list"] = T1
+            Ginfo[gid]["players"][0]["show"] = len(T1)
         
         
         if getSum(Ginfo[gid]["players"][0]["list"]) < UserMax:
-            T1 = Ginfo[gid]["players"][0]["list"][:2]
+            T1 = Ginfo[gid]["players"][0]["list"][:1]
             T2 = []
             i = 0
             
             Ginfo[gid]["freeCard"].append(Ginfo[gid]["players"][0]["list"][1:])
 
             def aNew():
-                T2 = list(T1) + random.choices(Ginfo[gid]["freeCard"], k=3)
+                T2 = list(T1) + random.choices(Ginfo[gid]["freeCard"], k=4)
                 
                 showList = 2
                 
@@ -612,7 +613,7 @@ async def end(gid):
                 
                 T2 = T2[:showList]
                 
-                return getSum(T2) <= UserMax
+                return getSum(T2) < UserMax or getSum(T2) > 21
             
             while aNew() and i < 200:
                 i += 1
