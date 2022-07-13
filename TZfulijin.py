@@ -57,8 +57,12 @@ async def _(event: GroupMessageEvent):
     user_qq_list, impression_list , user_group = await SignGroupUser.get_all_impression(group_id=group)
 
     #好感度在当前群占比
-    parent =  impression_list[user_qq_list.index(uid)]  / sum(impression_list) 
-
+    try:
+        parent =  impression_list[user_qq_list.index(uid)]  / sum(impression_list)
+    except ValueError as e:
+        await charity.finish(f"先去签到再来找{NICKNAME}要钱吧") #报错请先签到试试
+    except ZeroDivisionError as e:
+        await charity.finish(f"你和{NICKNAME}甚至都不认识（你的好感度咋是零捏？）") #好感度为零及时结束，防止parent下传导致出现其他无关又看不懂的报错
     maxNum = golds * 0.9 * parent * random.randint(4,8) / 10
     minNum = maxNum * 0.5 * parent * random.randint(2,6) / 10
 
