@@ -140,7 +140,7 @@ class TZBlack(db.Model):
         if gid == None:
             return 0
         query = cls.query.where((
-                                        cls.gid == gid) & (cls.uid == uid) & (cls.initime >= BeforeDay()))
+            cls.gid == gid) & (cls.uid == uid) & (cls.initime >= BeforeDay()))
 
         data = await query.with_for_update().gino.all()
         mList = [x.money if x.inMoney == 0 else x.inMoney for x in data]
@@ -164,7 +164,7 @@ class TZBlack(db.Model):
         if gid == None:
             return 0
         query = cls.query.where((
-                                        cls.gid == gid) & (cls.from_qq == from_qq) & (cls.initime >= BeforeDay()))
+            cls.gid == gid) & (cls.from_qq == from_qq) & (cls.initime >= BeforeDay()))
 
         data = await query.with_for_update().gino.all()
         return sum([x.money for x in data])
@@ -193,11 +193,13 @@ class TZBlack(db.Model):
     async def all_toW(cls, uid, gid: int = None):
         if gid == None:
             return 0
-        query = cls.query.where((cls.uid == uid) & (cls.gid == gid))
+        query = cls.query.where((cls.uid == uid) & (
+            cls.gid == gid) & (cls.state == 0))
         query = query.with_for_update()
-        user = await query.gino.first()
-        if user:
-            await user.update(state=1, wrtime=datetime.datetime.now()).apply()
+        user = await query.gino.all()
+        if len(user) > 0:
+            for x in user:
+                await x.update(state=1, wrtime=datetime.datetime.now()).apply()
 
     # 一定时间内是否 洗白过
     @classmethod
