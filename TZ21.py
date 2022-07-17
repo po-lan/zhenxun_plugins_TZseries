@@ -627,6 +627,7 @@ async def end(gid):
 
     # 判断 庄 是炸了还是赢了
     bankerCard = Ginfo[gid]["players"][bankerUid]["list"][:Ginfo[gid]["players"][bankerUid]["show"]]
+    bankerCard[0] , bankerCard[1] = bankerCard[1] , bankerCard[0]
     bankerS = getSum(bankerCard)
 
     if bankerS < 22:
