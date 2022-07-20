@@ -71,7 +71,7 @@ async def _():
         # 买罐子的钱收入真寻小金库(如果有打TZ插件的话)
         if TZ :
             await TZtreasury.add(group_id, goods_price[goods_name])
-        str_out = use_str[random.randint(0, len(use_str))]
+        str_out = use_str[random.randint(0, len(use_str)-1)]
         return str_out      # 返回值将作为提示内容输出，也可以返回None，在sign_card中使用bot发送消息
 
 
