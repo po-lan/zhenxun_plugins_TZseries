@@ -465,8 +465,9 @@ async def _(event: GroupMessageEvent):
 
     while(My24H_isBlock > 0):
         if My24H_isBlock >= 50:
-            MList.append(50)
-            My24H_isBlock -= 50
+            num = random.randint(20,50)
+            MList.append(num)
+            My24H_isBlock -= num
         else:
             MList.append(My24H_isBlock)
             My24H_isBlock = 0
