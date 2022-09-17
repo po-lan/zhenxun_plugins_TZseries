@@ -1,7 +1,5 @@
-import json
 import time
 import random
-from services.log import logger
 from nonebot import on_command
 from models.bag_user import BagUser
 from nonebot.params import CommandArg
@@ -208,7 +206,6 @@ async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
     Ginfo[gid]["freeCard"] = []
     Ginfo[gid]["time"] = time.time()
     Ginfo[gid]["banker"] = banker
-    
     await ruchangx(gid, uid, uname, cost, banker)
     blk.set_false(gid)
     if banker:
@@ -346,8 +343,6 @@ async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
             "uname": NICKNAME,
             "cost": int(0)
         }
-        
-        logger.debug("机器人加入21点游戏")
 
     # 基于牌组 分配
     if False:
@@ -360,15 +355,11 @@ async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
         for i, key in enumerate(Ginfo[gid]["players"]):
             Ginfo[gid]["players"][key] = {
                 **Card[i], **Ginfo[gid]["players"][key]}
-        
-        logger.debug(f'21点分牌结束 {json.dumps(Ginfo[gid]["players"])}')
 
     # 回收空牌
     for v in Card[len(Ginfo[gid]["players"]):]:
         for v in v["list"]:
             Ginfo[gid]["freeCard"].append(v)
-            
-    logger.debug(f'21点回收空牌结束 {json.dumps(Ginfo[gid]["freeCard"])}')
 
     # 初次算点
     for v in Ginfo[gid]["players"].values():
@@ -486,8 +477,6 @@ async def _(bot: Bot, event: MessageEvent, arg: Message = CommandArg()):
     if Ginfo[gid]["startUid"] != uid and str(uid) not in list(bot.config.superusers):
         await opendian.finish(f'结束失败\n需由创建者 {getStartUserName(gid)} 结束')
 
-    logger.debug(f'21点结算初始化 {json.dumps(Ginfo[gid]["players"])}')
-
     # 获取 未停牌 玩家 Uid 列表
     def notEndUser(T):
         notEndUserList = []
@@ -521,22 +510,16 @@ async def _(bot: Bot, event: MessageEvent, arg: Message = CommandArg()):
 
 
 async def end(gid):
+    
     global Ginfo
     # 获取庄UID
     bankerUid =  Ginfo[gid]["startUid"] if Ginfo[gid]["banker"] else 0
 
-    logger.debug(f'21点结算开始1 {json.dumps(Ginfo[gid]["players"][bankerUid])}')
-    logger.info(f'21结算开始 {Ginfo[gid]["players"][bankerUid]["show"]} {Ginfo[gid]["players"][bankerUid]["list"]}')
+    print(bankerUid)
     
     # 让 庄 的牌先打到17
-    while getSum(Ginfo[gid]["players"][bankerUid]["list"][:Ginfo[gid]["players"][bankerUid]["show"]]) < 17 and Ginfo[gid]["players"][bankerUid]["show"] < 10:
-        logger.info(f"bankerUid {bankerUid}")
-        logger.info(f'{Ginfo[gid]["players"][bankerUid]["show"]} {Ginfo[gid]["players"][bankerUid]["list"]}')
-        logger.info(f'{Ginfo[gid]["players"]}')
-        
+    while getSum(Ginfo[gid]["players"][bankerUid]["list"][:Ginfo[gid]["players"][bankerUid]["show"]]) < 17:
         Ginfo[gid]["players"][bankerUid]["show"] += 1
-        
-    logger.debug(f'21点结算开始2 {json.dumps(Ginfo[gid]["players"][bankerUid])}')
 
     bankerS, bankerBoom, text = 0, False, ""
 
@@ -592,18 +575,15 @@ async def end(gid):
     if (Ginfo[gid]["gold"] < gold / 2 or len(Ginfo[gid]["players"].values()) > 4) and (
             Config.get_config("TZ21", "FC") and Ginfo[gid]["players"][bankerUid]["BJ"] == False) and bankerUid == 0:
         
-        O = Ginfo[gid]["players"][bankerUid]["list"]
-        
-        logger.debug(f'21点结算-出千开始 {json.dumps(Ginfo[gid]["players"][bankerUid]["list"])}')
-        
         isNotOK = False
+        
         T1 = Ginfo[gid]["players"][0]["list"][:2]
         
-        if getSum(T1) < 17 and getSum(T1) < UserMax:
+        if UserMax != 21 and getSum(T1) < 16:
             Ginfo[gid]["freeCard"].append(Ginfo[gid]["players"][0]["list"][2:])
-            x = 21 - getSum(T1)
+            x = 20 - getSum(T1)
             isNotOK = True
-            while isNotOK and x > 0:
+            while isNotOK and x > 1:
                 Card = "A" if x == 1 else x
                 if Card in Ginfo[gid]["freeCard"]:
                     T1.append(Card)
@@ -615,46 +595,35 @@ async def end(gid):
             Ginfo[gid]["players"][0]["list"] = T1
             Ginfo[gid]["players"][0]["show"] = len(T1)
         
-        logger.debug(f'21点结算-出千1结束 {json.dumps(Ginfo[gid]["players"][bankerUid]["list"])}')
         
-        if getSum(Ginfo[gid]["players"][0]["list"]) < UserMax or getSum(Ginfo[gid]["players"][0]["list"]) < 17:
+        if getSum(Ginfo[gid]["players"][0]["list"]) < UserMax:
+            T1 = Ginfo[gid]["players"][0]["list"][:1]
             T2 = []
             i = 0
             
             Ginfo[gid]["freeCard"].append(Ginfo[gid]["players"][0]["list"][1:])
 
             def aNew():
-                T2 = list(Ginfo[gid]["players"][0]["list"][:1]) + random.choices(Ginfo[gid]["freeCard"], k=3)
+                T2 = list(T1) + random.choices(Ginfo[gid]["freeCard"], k=4)
                 
                 showList = 2
                 
-                while getSum(T2[:showList]) < 17 and showList <= 4:
+                while getSum(T2[:showList]) < 17 and showList <= 5:
                     showList += 1
                 
                 T2 = T2[:showList]
                 
-                return getSum(T2) < UserMax or getSum(T2) > 21
+                return getSum(T2) < UserMax or getSum(T2) >= 21
             
             while aNew() and i < 200:
                 i += 1
-                
-            Ginfo[gid]["players"][0]["list"] = T2
-            Ginfo[gid]["players"][0]["show"] = len(T2)
-            
-        logger.debug(f'21点结算-出千结束 {json.dumps(Ginfo[gid]["players"][bankerUid]["list"])}')
-        
-        #随机抽取失败、恢复默认
-        if Ginfo[gid]["players"][0]["list"] == []:
-            Ginfo[gid]["players"][0]["list"] = O
-            while getSum(Ginfo[gid]["players"][bankerUid]["list"][:Ginfo[gid]["players"][bankerUid]["show"]]) < 17 and Ginfo[gid]["players"][bankerUid]["show"] < 10:
-                Ginfo[gid]["players"][bankerUid]["show"] += 1
-            
+                Ginfo[gid]["players"][0]["list"] = T2
+                Ginfo[gid]["players"][0]["show"] = len(T2)
 
-    logger.debug(f'21点结算开始3 {json.dumps(Ginfo[gid]["players"][bankerUid])}')
 
     # 提取没炸的人
     for value in list(filter(isNotBoom, Ginfo[gid]["players"].values())):
-        text += f"{value['uname']}的牌是：{','.join(value['list'][:value['show']])}、总点数{getSum(value['list'][:value['show']])}\n"
+        text += f"{value['uname']}的牌是：{','.join(value['list'][:value['show']])}\n"
 
     # 判断 庄 是炸了还是赢了
     bankerCard = Ginfo[gid]["players"][bankerUid]["list"][:Ginfo[gid]["players"][bankerUid]["show"]]
