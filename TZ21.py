@@ -648,14 +648,31 @@ async def end(gid):
             gold -= v["cost"] * 2
     else:
         # 没人胜利
-        text += f"{NICKNAME} 收走了全部的金币"
+        if bankerUid == 0:
+            text += f"{NICKNAME} 收走了全部的金币"
+        else:
+            
+            #text += f"但 { NICKNAME } 收了3%作为手续费"
 
-    #  金币 加入累计
-    Ginfo[gid]["gold"] += gold
-    if gold >= 0:
-        text += f"\n{NICKNAME}本局赚了{gold}金币"
+    if bankerUid == 0:
+        #  金币 加入累计
+        Ginfo[gid]["gold"] += gold
+        if gold >= 0:
+            text += f"\n{NICKNAME}本局赚了{gold}金币"
+        else:
+            text += f"\n{NICKNAME}本局赔了{abs(gold)}金币"
     else:
-        text += f"\n{NICKNAME}本局赔了{abs(gold)}金币"
+        #玩家庄 对玩家扣钱或加钱
+        if gold>0:
+            text += f"{Ginfo[gid]["player"][bankerUid]["name"]} 收走了全部的金币"
+            text += f"但 { NICKNAME } 收了5%作为手续费"
+            BagUser.add_gold(bankerUid, gid, int(gold*0.95))
+            TZtreasury.add(gid,int(gold*0.05))
+        else if gold < 0:
+            text += f"{Ginfo[gid]["player"][bankerUid]["name"]} 赔付了全部的金币"
+            BagUser.spend_gold(bankerUid, gid, abs(gold))
+
+
 
     #  await jiesuan.send_msg(message=image(b64=(await text2image(text, color="#f9f6f2", padding=10)).pic2bs4()),group_id=gid)
 
