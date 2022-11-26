@@ -651,7 +651,7 @@ async def end(gid):
         if bankerUid == 0:
             text += f"{NICKNAME} 收走了全部的金币"
         else:
-            
+            pass
             #text += f"但 { NICKNAME } 收了3%作为手续费"
 
     if bankerUid == 0:
