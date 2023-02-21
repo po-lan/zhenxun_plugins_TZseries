@@ -1,6 +1,7 @@
 import time
 import random
 from nonebot import on_command
+from nonebot.rule import to_me
 from models.bag_user import BagUser
 from nonebot.params import CommandArg
 from utils.message_builder import image
@@ -14,7 +15,7 @@ from ._model import TZtreasury
 __zx_plugin_name__ = "21点"
 __plugin_usage__ = f"""
 usage：
-    第一位玩家发起活动，指令：21点[金币数量]
+    第一位玩家发起活动，指令：@{NICKNAME} 21点[金币数量]
     接受21点赌局，指令：入场[金币数量]
     人齐后开局，指令：开局
     拿牌指令：拿牌
@@ -69,25 +70,12 @@ def getStartUserName(gid):
     minute=1,
 )
 async def _():
-    global Ginfo
-    for gid in Ginfo:
-        # gold = Ginfo[gid]["gold"]
-        """
-        if gold > 0:
-            try:
-                from .TZggl import TZlottery
-                gold += await TZlottery.getLotteryGold(gid)
-                await TZlottery.setLotteryGold(gid,gold)
-            except:
-                pass
-        """
-        # 归零
-        Ginfo[gid]["gold"] = 0
+    await upadte_gold()
 
 
 dq = on_command("21点打钱", priority=5, block=True)
 
-opendian = on_command("21点", priority=5, block=True)
+opendian = on_command("21点", priority=5, block=True,rule=to_me())
 
 ruchang = on_command("入场", priority=5, block=True)
 
@@ -99,9 +87,26 @@ tingpai = on_command("停牌", priority=5, block=True)
 
 jiesuan = on_command("21点结算", aliases={"21点结束"}, priority=5, block=True)
 
+super_end = on_command("21点强制结算", aliases={"21点强制结束"}, priority=5, permission=SUPERUSER, block=True)
+
 FC = on_command("21点流水控制", priority=5, permission=SUPERUSER, block=True)
 
 chance = on_command("开局前随机换牌概率", priority=5, permission=SUPERUSER, block=True)
+
+update = on_command("更新21点金币", priority=5, permission=SUPERUSER, block=True)
+
+
+@super_end.handle()
+async def _(event: GroupMessageEvent):
+    global Ginfo
+    if Ginfo[event.group_id]["players"] and Ginfo[event.group_id]["state"] != 0:
+        for v in Ginfo[event.group_id]["players"].values():
+            if v['uid'] != 0 and not v['banker']:
+                await BagUser.add_gold(v['uid'], event.group_id, v['cost'])
+        Ginfo[event.group_id]["state"] = 0
+        await super_end.finish("对局已强制结算，金币已退回")
+    else:
+        await super_end.finish("当前没有对局")
 
 
 @dq.handle()
@@ -135,7 +140,6 @@ async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
     else:
         blk.set_false(gid)
         await dq.finish(f"如果你是要给{NICKNAME}打钱记得带上金额啊", at_sender=True)
-
 
 
 @opendian.handle()
@@ -325,15 +329,6 @@ async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
     # 判断是不是开场的人发的开局
     if Ginfo[gid]["startUid"] != uid:
         await opendian.finish(f"开局失败\n需由创建者 {getStartUserName(gid)} 开局")
-
-    # 停止入场
-    Ginfo[gid]["state"] = 2
-
-    # 生成牌组，且当牌组为7时重新生成
-    Card = sortOut()
-    while len(Card) == 7:
-        Card = sortOut()
-
     # 机器人加入游戏
     if not Ginfo[gid]["banker"]:
         Ginfo[gid]["players"][0] = {
@@ -343,18 +338,22 @@ async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
             "uname": NICKNAME,
             "cost": int(0)
         }
+    # 判断是不是开场的人发的开局
+    elif len(Ginfo[gid]["players"]) < 2:
+        await opendian.finish(f"开局失败\n你要自己跟自己玩嘛")
 
-    # 基于牌组 分配
-    if False:
-        # 出千模式
-        #
-        # 还没想好怎么出千
-        pass
-    else:
-        # 正常模式
-        for i, key in enumerate(Ginfo[gid]["players"]):
-            Ginfo[gid]["players"][key] = {
-                **Card[i], **Ginfo[gid]["players"][key]}
+    # 停止入场
+    Ginfo[gid]["state"] = 2
+
+    # 生成牌组，且当牌组为7时重新生成
+    Card = sortOut()
+    while len(Card) == 7:
+        Card = sortOut()
+
+    # 正常模式
+    for i, key in enumerate(Ginfo[gid]["players"]):
+        Ginfo[gid]["players"][key] = {
+            **Card[i], **Ginfo[gid]["players"][key]}
 
     # 回收空牌
     for v in Card[len(Ginfo[gid]["players"]):]:
@@ -382,7 +381,7 @@ async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
 
 
 @napai.handle()
-async def _(bot: Bot, event: MessageEvent, arg: Message = CommandArg()):
+async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
     global Ginfo
     uid = event.user_id
     gid = event.group_id
@@ -438,7 +437,7 @@ async def _(bot: Bot, event: MessageEvent, arg: Message = CommandArg()):
 
 
 @tingpai.handle()
-async def _(bot: Bot, event: MessageEvent, arg: Message = CommandArg()):
+async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
     global Ginfo
     uid = event.user_id
     gid = event.group_id
@@ -452,13 +451,13 @@ async def _(bot: Bot, event: MessageEvent, arg: Message = CommandArg()):
 
     # 如果玩家不在列表里
     if uid not in Ginfo[gid]["players"]:
-        await opendian.finish(f"无关人员不要捣乱\n")
+        await tingpai.finish(f"无关人员不要捣乱\n")
 
     Ginfo[gid]["players"][uid]["isEnd"] = True
 
 
 @jiesuan.handle()
-async def _(bot: Bot, event: MessageEvent, arg: Message = CommandArg()):
+async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
     global Ginfo
     uid = event.user_id
     gid = event.group_id
@@ -510,13 +509,10 @@ async def _(bot: Bot, event: MessageEvent, arg: Message = CommandArg()):
 
 
 async def end(gid):
-    
     global Ginfo
     # 获取庄UID
-    bankerUid =  Ginfo[gid]["startUid"] if Ginfo[gid]["banker"] else 0
-
-    print(bankerUid)
-    
+    bankerUid = Ginfo[gid]["startUid"] if Ginfo[gid]["banker"] else 0
+    banker_name = Ginfo[gid]["players"][bankerUid]["uname"]
     # 让 庄 的牌先打到17
     while getSum(Ginfo[gid]["players"][bankerUid]["list"][:Ginfo[gid]["players"][bankerUid]["show"]]) < 17:
         Ginfo[gid]["players"][bankerUid]["show"] += 1
@@ -567,18 +563,19 @@ async def end(gid):
     # 收集金币0
     for v in list(Ginfo[gid]["players"].values()):
         gold += v["cost"]
-        
-     # 计算 玩家 最大的得分
-    UserMax = max([0]+[getSum(v['list'][:v['show']]) for v in list(filter(isNotBoom, Ginfo[gid]["players"].values()))])
 
-    #出千
+    # 计算 玩家 最大的得分
+    UserMax = max(
+        [0] + [getSum(v['list'][:v['show']]) for v in list(filter(isNotBoom, Ginfo[gid]["players"].values()))])
+
+    # 出千
     if (Ginfo[gid]["gold"] < gold / 2 or len(Ginfo[gid]["players"].values()) > 4) and (
             Config.get_config("TZ21", "FC") and Ginfo[gid]["players"][bankerUid]["BJ"] == False) and bankerUid == 0:
-        
+
         isNotOK = False
-        
+
         T1 = Ginfo[gid]["players"][0]["list"][:2]
-        
+
         if UserMax != 21 and getSum(T1) < 16:
             Ginfo[gid]["freeCard"].append(Ginfo[gid]["players"][0]["list"][2:])
             x = 20 - getSum(T1)
@@ -591,35 +588,33 @@ async def end(gid):
                     isNotOK = False
                 else:
                     x -= 1
-        
+
             Ginfo[gid]["players"][0]["list"] = T1
             Ginfo[gid]["players"][0]["show"] = len(T1)
-        
-        
+
         if getSum(Ginfo[gid]["players"][0]["list"]) < UserMax:
             T1 = Ginfo[gid]["players"][0]["list"][:1]
             T2 = []
             i = 0
-            
+
             Ginfo[gid]["freeCard"].append(Ginfo[gid]["players"][0]["list"][1:])
 
             def aNew():
                 T2 = list(T1) + random.choices(Ginfo[gid]["freeCard"], k=4)
-                
+
                 showList = 2
-                
+
                 while getSum(T2[:showList]) < 17 and showList <= 5:
                     showList += 1
-                
+
                 T2 = T2[:showList]
-                
+
                 return getSum(T2) < UserMax or getSum(T2) >= 21
-            
+
             while aNew() and i < 200:
                 i += 1
                 Ginfo[gid]["players"][0]["list"] = T2
                 Ginfo[gid]["players"][0]["show"] = len(T2)
-
 
     # 提取没炸的人
     for value in list(filter(isNotBoom, Ginfo[gid]["players"].values())):
@@ -627,13 +622,13 @@ async def end(gid):
 
     # 判断 庄 是炸了还是赢了
     bankerCard = Ginfo[gid]["players"][bankerUid]["list"][:Ginfo[gid]["players"][bankerUid]["show"]]
-    bankerCard[0] , bankerCard[1] = bankerCard[1] , bankerCard[0]
+    bankerCard[0], bankerCard[1] = bankerCard[1], bankerCard[0]
     bankerS = getSum(bankerCard)
 
     if bankerS < 22:
-        text = f"{NICKNAME}的牌是：{','.join(bankerCard)},总点数为{bankerS}\n" + text
+        text = f"{banker_name}的牌是：{','.join(bankerCard)},总点数为{bankerS}\n" + text
     else:
-        text = f"{NICKNAME}的牌是：{','.join(bankerCard)},总点数为{bankerS}，炸了\n" + text
+        text = f"{banker_name}的牌是：{','.join(bankerCard)},总点数为{bankerS}，炸了\n" + text
         bankerBoom = True
         # 计算玩家胜利
 
@@ -643,7 +638,7 @@ async def end(gid):
         text += f'\n本场胜利的：'
         for v in winUsers:
             text += f'\n{v["uname"]} 赢得了 {v["cost"]}金币--税{int(v["cost"] * 0.2)}'
-            await TZtreasury.add(gid, int(v["cost"] * 0.2))
+            await TZtreasury.update_treasury_info(gid, int(v["cost"] * 0.2))
             await BagUser.add_gold(v["uid"], gid, int(v["cost"] * 1.8))
             gold -= v["cost"] * 2
     else:
@@ -652,27 +647,25 @@ async def end(gid):
             text += f"{NICKNAME} 收走了全部的金币"
         else:
             pass
-            #text += f"但 { NICKNAME } 收了3%作为手续费"
+            # text += f"但 { NICKNAME } 收了3%作为手续费"
 
     if bankerUid == 0:
         #  金币 加入累计
         Ginfo[gid]["gold"] += gold
         if gold >= 0:
-            text += f"\n{NICKNAME}本局赚了{gold}金币"
+            text += f"\n{banker_name}本局赚了{gold}金币"
         else:
-            text += f"\n{NICKNAME}本局赔了{abs(gold)}金币"
+            text += f"\n{banker_name}本局赔了{abs(gold)}金币"
     else:
-        #玩家庄 对玩家扣钱或加钱
-        if gold>0:
-            text += f"{Ginfo[gid]["player"][bankerUid]["name"]} 收走了全部的金币"
-            text += f"但 { NICKNAME } 收了5%作为手续费"
-            BagUser.add_gold(bankerUid, gid, int(gold*0.95))
-            TZtreasury.add(gid,int(gold*0.05))
-        else if gold < 0:
-            text += f"{Ginfo[gid]["player"][bankerUid]["name"]} 赔付了全部的金币"
-            BagUser.spend_gold(bankerUid, gid, abs(gold))
-
-
+        # 玩家庄 对玩家扣钱或加钱
+        if gold > 0:
+            text += f'{banker_name}收走了全部的金币'
+            text += f"但 {NICKNAME} 收了5%作为手续费"
+            await BagUser.add_gold(bankerUid, gid, int(gold * 0.95))
+            await TZtreasury.update_treasury_info(gid, int(gold * 0.05))
+        elif gold < 0:
+            text += f'{banker_name} 赔付了全部的金币'
+            await BagUser.spend_gold(bankerUid, gid, abs(gold))
 
     #  await jiesuan.send_msg(message=image(b64=(await text2image(text, color="#f9f6f2", padding=10)).pic2bs4()),group_id=gid)
 
@@ -691,12 +684,12 @@ async def _(arg: Message = CommandArg()):
     msg = arg.extract_plain_text().strip()
     if msg == "开":
         Config.set_config("TZ21", "FC", True)
-        await chance.finish(f"流水控制已开启", at_sender=True)
+        await FC.finish(f"流水控制已开启", at_sender=True)
     elif msg == "关":
         Config.set_config("TZ21", "FC", False)
-        await chance.finish(f"流水控制已关闭", at_sender=True)
+        await FC.finish(f"流水控制已关闭", at_sender=True)
     else:
-        await chance.finish(f"参数只能为开或关", at_sender=True)
+        await FC.finish(f"参数只能为开或关", at_sender=True)
 
 
 # 奖池调整
@@ -840,6 +833,13 @@ def sortOut():
         if random.randint(1, 20) <= chance:
             keys = random.choices(range(len(v["list"]) - 1), k=2)
             v["list"][keys[0]], v["list"][keys[1]
-                                          ] = v["list"][keys[1]], v["list"][keys[0]]
+            ] = v["list"][keys[1]], v["list"][keys[0]]
 
     return T
+
+
+async def upadte_gold():
+    global Ginfo
+    for gid in Ginfo:
+        # 归零
+        Ginfo[gid]["gold"] = 0

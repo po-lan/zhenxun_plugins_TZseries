@@ -18,6 +18,7 @@ usage：
     {NICKNAME}的银行绝对安全，不会被打劫
     不过也有一点手续费
     存入的金额不可高于 自己拥有总额的70%
+    超出总额的70%会自动转出
     指令：
         #银行存入 num
         #银行取出 num
@@ -36,6 +37,7 @@ usage：
 __plugin_des__ = "一个金币暂存处，可以防止打劫"
 __plugin_type__ = ("群内小游戏",)
 __plugin_cmd__ = [
+    "银行",
     "#银行存入",
     "#银行取出",
     "#银行汇款",
@@ -50,7 +52,7 @@ __plugin_settings__ = {
     "level": 5,
     "default_status": True,
     "limit_superuser": False,
-    "cmd": ["#银行存入", "#银行取出", "#银行汇款", "#个人汇款", "#个人转账", "#我的存款", "#存款排行"],
+    "cmd": ["银行", "#银行存入", "#银行取出", "#银行汇款", "#个人汇款", "#个人转账", "#我的存款", "#存款排行"],
 }
 __plugin_configs__ = {
     "MAX_MONEY_BASICS": {"value": 1000, "help": "银行存款基础上限", "default_value": 1000},
@@ -58,12 +60,12 @@ __plugin_configs__ = {
 
 
 # 超出百分之70自动转出
-# @scheduler.scheduled_job(
-#     "interval",
-#     seconds=30,
-# )
-# async def _():
-#     await update_bank_70()
+@scheduler.scheduled_job(
+    "interval",
+    seconds=30,
+)
+async def _():
+    await update_bank_70()
 
 
 save = on_command("#银行存入", priority=5, permission=GROUP, block=True)
@@ -84,7 +86,7 @@ async def _(event: GroupMessageEvent, arg: Message = CommandArg()):
     uid = event.user_id
     group = event.group_id
     gold = await BagUser.get_gold(uid, group)
-    inbank = await TZBank.get(uid, group)
+    inbank = await TZBank.get_(uid, group)
     all = gold + inbank
     # 手续费
     charges = int(num * 0.03) if int(num * 0.03) > 1 else 1
@@ -95,11 +97,12 @@ async def _(event: GroupMessageEvent, arg: Message = CommandArg()):
         max_money = await calculation_max_money(uid, group)
         if inbank + num - charges > max_money:
             CanSave = int((max_money - inbank) * 1.03)
-            await save.finish(f"存入失败\n存入超过银行上限\n提高跟{NICKNAME}的好感度能增加上限哦\n还可存入：{int(CanSave) if int(CanSave) > 0 else 0}")
+            await save.finish(
+                f"存入失败\n存入超过银行上限\n提高跟{NICKNAME}的好感度能增加上限哦\n还可存入：{int(CanSave) if int(CanSave) > 0 else 0}")
         else:
             await BagUser.spend_gold(uid, group, num)
-            await TZtreasury.add(group, charges)
-            await TZBank.add(uid, group, num - charges)
+            await TZtreasury.update_treasury_info(group, charges)
+            await TZBank.update_bank_info(uid, group, num - charges)
             await save.finish(f"{num}成功存入\n{NICKNAME}收取了3%({charges})的手续费")
     else:
         await save.finish(f"存入失败\n存取超过拥有总额的70%\n当前最大可存入{int(CanSave) if int(CanSave) > 0 else 0}")
@@ -122,15 +125,15 @@ async def _(event: GroupMessageEvent, arg: Message = CommandArg()):
 
     uid = event.user_id
     group = event.group_id
-    inbank = await TZBank.get(uid, group)
+    inbank = await TZBank.get_(uid, group)
     # 手续费
     charges = int(num * 0.07) if int(num * 0.07) > 1 else 1
     if num > inbank:
         await take.finish(f"你的钱好像不够啊")
     else:
-        await TZBank.spend(uid, group, num)
+        await TZBank.update_bank_info(uid, group, -num)
         await BagUser.add_gold(uid, group, num - charges)
-        await TZtreasury.add(group, charges)
+        await TZtreasury.update_treasury_info(group, charges)
         await take.finish(f"{num}成功取出\n{NICKNAME}收取了7%({charges})的手续费")
 
 
@@ -161,14 +164,14 @@ async def _(event: GroupMessageEvent, arg: Message = CommandArg()):
         await bankMove.finish("你要给自己汇款？你信不信我能把你钱全吞了")
 
     group = event.group_id
-    inbank = await TZBank.get(uid, group)
+    inbank = await TZBank.get_(uid, group)
     # 手续费
     charges = int(num * 0.01) if int(num * 0.01) > 1 else 1
     if num > inbank:
         await bankMove.finish(f"你的钱好像不够啊")
     else:
         gold = await BagUser.get_gold(toqq, group)
-        inbank_to = await TZBank.get(toqq, group)
+        inbank_to = await TZBank.get_(toqq, group)
         all = gold + inbank_to
         CanSave = all * 0.7 - inbank_to
         if CanSave >= num:
@@ -178,9 +181,9 @@ async def _(event: GroupMessageEvent, arg: Message = CommandArg()):
                 await bankMove.finish(
                     f"转入失败\n转入超过对方银行上限\n提高跟{NICKNAME}的好感度能增加上限哦\n还可转入：{int(CanSave) if int(CanSave) > 0 else 0}")
             else:
-                await TZBank.spend(uid, group, num)
-                await TZBank.add(toqq, group, num - charges)
-                await TZtreasury.add(group, charges)
+                await TZBank.update_bank_info(uid, group, -num)
+                await TZBank.update_bank_info(toqq, group, num - charges)
+                await TZtreasury.update_treasury_info(group, charges)
                 await bankMove.finish(f"{num}成功转入对方的银行账户\n{NICKNAME}收取了1%({charges})的手续费")
         else:
             await bankMove.finish(f"转入失败\n转入超过对方拥有总额的70%\n当前最大可转入{int(CanSave) if int(CanSave) > 0 else 0}")
@@ -221,7 +224,7 @@ async def _(event: GroupMessageEvent, arg: Message = CommandArg()):
         await PMove.finish(f"你的钱好像不够啊")
     else:
         gold = await BagUser.get_gold(toqq, group)
-        inbank_to = await TZBank.get(toqq, group)
+        inbank_to = await TZBank.get_(toqq, group)
         all = gold + inbank_to
         CanSave = all * 0.7 - inbank_to
         if CanSave >= num:
@@ -232,8 +235,8 @@ async def _(event: GroupMessageEvent, arg: Message = CommandArg()):
                     f"转入失败\n转入超过对方银行上限\n提高跟{NICKNAME}的好感度能增加上限哦\n还可转入：{int(CanSave) if int(CanSave) > 0 else 0}")
             else:
                 await BagUser.spend_gold(uid, group, num)
-                await TZBank.add(toqq, group, num - charges)
-                await TZtreasury.add(group, charges)
+                await TZBank.update_bank_info(toqq, group, num - charges)
+                await TZtreasury.update_treasury_info(group, charges)
                 quchu_num = await check_bank_70(uid, group)
                 if quchu_num:
                     await PTP.finish(
@@ -280,7 +283,7 @@ async def _(event: GroupMessageEvent, arg: Message = CommandArg()):
     else:
         await BagUser.spend_gold(uid, group, num)
         await BagUser.add_gold(toqq, group, num - charges)
-        await TZtreasury.add(group, charges)
+        await TZtreasury.update_treasury_info(group, charges)
         quchu_num = await check_bank_70(uid, group)
         if quchu_num:
             await PTP.finish(
@@ -293,8 +296,8 @@ mySave = on_command("#我的存款", aliases={"#银行存款"}, priority=5, perm
 
 @mySave.handle()
 async def _(event: GroupMessageEvent):
-    money = await TZBank.get(event.user_id, event.group_id)
-    await mySave.finish(f"你在{NICKNAME}的银行存款共有\n{money}枚金币")
+    money = await TZBank.get_(event.user_id, event.group_id)
+    await mySave.finish(f"你在{NICKNAME}的银行存款共有\n{money if money else 0}枚金币")
 
 
 updateSave = on_command("#更新存款", permission=SUPERUSER, block=True)
@@ -319,15 +322,17 @@ async def _(event: GroupMessageEvent, arg: Message = CommandArg()):
     else:
         num = 10
 
-    all_users = await TZBank.get_all_users(event.group_id)
-    all_user_id = [user.user_qq for user in all_users]
-    all_user_data = [user.money for user in all_users]
+    all_users = await TZBank.get_or_none(group_id=event.group_id)
+    if all_users:
+        all_user_id = [user.user_qq for user in all_users]
+        all_user_data = [user.money for user in all_users]
 
-    rank_image = await init_rank("存款排行", all_user_id, all_user_data, event.group_id, num)
+        rank_image = await init_rank("存款排行", all_user_id, all_user_data, event.group_id, num)
 
-    if rank_image:
-        await rank.finish(image(b64=rank_image.pic2bs4()))
-
+        if rank_image:
+            await rank.finish(image(b64=rank_image.pic2bs4()))
+    else:
+        await rank.finish("当前好像没人存钱哦")
 
 async def update_bank_gold():
     all_users = await TZBank.get_all_users()
@@ -336,7 +341,7 @@ async def update_bank_gold():
         group = q.group_id
         max_money = await calculation_max_money(uid, group)
         if q.money > max_money:
-            await TZBank.spend(uid, group, q.money - max_money)
+            await TZBank.update_bank_info(uid, group, max_money-q.money)
             await BagUser.add_gold(uid, group, q.money - max_money)
         await check_bank_70(uid, group)
 
@@ -350,7 +355,7 @@ async def update_bank_70():
 
 async def check_bank_70(user_qq: int, group_id: int):
     gold = await BagUser.get_gold(user_qq, group_id)
-    inbank = await TZBank.get(user_qq, group_id)
+    inbank = await TZBank.get_(user_qq, group_id)
     all = gold + inbank
     CanSave_bank = int(all * 0.7)
     if inbank == 1:
@@ -362,19 +367,19 @@ async def check_bank_70(user_qq: int, group_id: int):
         if num + charges > inbank:
             return False
         else:
-            await TZBank.spend(user_qq, group_id, num + charges)
+            await TZBank.update_bank_info(user_qq, group_id, -(num + charges))
             await BagUser.add_gold(user_qq, group_id, num)
-            await TZtreasury.add(group_id, charges)
+            await TZtreasury.update_treasury_info(group_id, charges)
             return num
 
 
 # 计算最大值
 async def calculation_max_money(user_qq: int, group_id: int):
     try:
-        q = await SignGroupUser.ensure(user_qq, group_id)
+        q = await SignGroupUser().get_or_none(user_qq=user_qq, group_id=group_id)
         impression = q.impression
     except Exception as e:
-        logger.warning(f"{user_qq}该用户未注册")
+        logger.warning(f"{user_qq}该用户未注册或{e}")
         impression = 0
     max_money = Config.get_config("TZbank", "MAX_MONEY_BASICS") + int(
         Config.get_config("TZbank", "MAX_MONEY_MULTIPLIER") * impression)

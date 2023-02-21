@@ -36,7 +36,6 @@ async def _(arg: Message = CommandArg()):
         data={"t":text},
         verify=False
     )
-    print(r.text)
     url = "https://www.jiuwa.net"+r.text
 
     if url:
