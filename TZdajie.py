@@ -51,18 +51,19 @@ __plugin_imprisonment__ = {
     "rst": "刚劫完一个又想来一个？你是想当后宫王呢？"
 }
 
-__plugin_configs__ = {
-    "BAN_TIME": {
-        "value": 3,
-        "help": "打劫失败进入小黑屋的时长，默认为3小时",
-        "default_value": 3
-    },
-    "SAVE_TIME": {
-        "value": 1800,
-        "help": "被打劫成功保护时长，默认为半小时",
-        "default_value": 1800
-    },
-}
+Config.add_plugin_config(
+    "TZdajie",
+    "BAN_TIME",
+    3,
+    help_="打劫失败进入小黑屋的时长，默认为3小时",
+)
+
+Config.add_plugin_config(
+    "TZdajie",
+    "SAVE_TIME",
+    1800,
+    help_="被打劫成功保护时长，默认为半小时"
+)
 save = {}
 duration = {}
 durationtime = 60
