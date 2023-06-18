@@ -157,14 +157,18 @@ class TZBlack(Model):
     async def add_blackMoney(cls, uid, from_qq, num, inNum=0, gid: int = None):
         if gid == None:
             return 0
-        await cls.create(uid=uid, gid=gid, from_qq=from_qq, money=num, inMoney=inNum, initime=datetime.datetime.now())
+        user, _ = await cls.get_or_create(uid=uid, gid=gid, from_qq=from_qq)
+        if user.inMoney < 0:
+            await cls.update_or_create(uid=uid, gid=gid, from_qq=from_qq, defaults={"money":user.money+num, "inMoney":inNum, "state":0, "initime":datetime.datetime.now()})
+        else:
+            await cls.update_or_create(uid=uid, gid=gid, from_qq=from_qq, defaults={"money":user.money+num, "inMoney":user.inMoney+inNum, "state":0, "initime":datetime.datetime.now()})
 
     # 洗白标记
     @classmethod
     async def all_toW(cls, uid, gid: int = None):
         if gid == None:
             return 0
-        await cls.filter(uid=uid, gid=gid).update(state=1, wrtime=datetime.datetime.now())
+        await cls.filter(uid=uid, gid=gid).update(money=0,inMoney=0,state=1, wrtime=datetime.datetime.now())
 
     # 一定时间内是否 洗白过
     @classmethod
@@ -188,4 +192,4 @@ class TZBlack(Model):
     @classmethod
     # 获取 追回 24h 没有洗白的钱 标记
     async def Over24_block_isBack(cls, id_):
-        await cls.filter(id=id_).update(state=2, wrtime=datetime.datetime.now())
+        await cls.filter(id=id_).update(money=0,inMoney=0,state=2, wrtime=datetime.datetime.now())
