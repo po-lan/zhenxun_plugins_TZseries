@@ -322,7 +322,7 @@ async def _(event: GroupMessageEvent, arg: Message = CommandArg()):
     else:
         num = 10
 
-    all_users = await TZBank.get_or_none(group_id=event.group_id)
+    all_users = await TZBank.filter(group_id=event.group_id).all()
     if all_users:
         all_user_id = [user.user_qq for user in all_users]
         all_user_data = [user.money for user in all_users]

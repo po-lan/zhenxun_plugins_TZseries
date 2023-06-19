@@ -107,7 +107,7 @@ async def _(event: GroupMessageEvent):
             at_sender=True)
 
     # 获取 被打劫用户名
-    q = await GroupInfoUser.get_or_none(user_qq=qq, group_id=group)
+    q = await GroupInfoUser.get_or_none(user_id=qq, group_id=group)
     if q == None:
         await jc.finish("你找不到打劫的对象，不如叫他先去签到？", at_sender=True)
     else:
@@ -167,7 +167,7 @@ async def _(event: GroupMessageEvent):
         await BagUser.spend_gold(qq, group, cost)
 
         # 对这笔黑钱进行记录
-        await TZBlack.add_blackMoney(uid=uid, from_qq=qq, num=cost, gid=group)
+        await TZBlack.add_blackMoney(uid=uid, from_qq=qq, num=cost,inNum=cost, gid=group)
 
         await jc.finish(text, at_sender=True)
 
@@ -203,7 +203,7 @@ async def _(event: GroupMessageEvent):
         await BagUser.spend_gold(qq, group, cost)
 
         # 对这笔黑钱进行记录
-        await TZBlack.add_blackMoney(uid=uid, from_qq=qq, num=cost, gid=group)
+        await TZBlack.add_blackMoney(uid=uid, from_qq=qq, num=cost,inNum=cost, gid=group)
 
         save[qq] = int(time.time() + savetime)
 
@@ -238,7 +238,7 @@ async def _(event: GroupMessageEvent):
             await BagUser.spend_gold(qq, group, cost)
 
             # 对这笔黑钱进行记录
-            await TZBlack.add_blackMoney(uid=uid, from_qq=qq, num=cost, gid=group)
+            await TZBlack.add_blackMoney(uid=uid, from_qq=qq, num=cost,inNum=cost, gid=group)
 
         else:
             num = abs(int((100 - check) / 100 * cost))
@@ -256,7 +256,7 @@ async def _(event: GroupMessageEvent):
             canAddBlock = 1000 - myBlock
 
             # 判断 黑钱数量
-            if (canAddBlock < cost):
+            if (canAddBlock < cost-num):
                 text += f"\n警察追回{cost - canAddBlock}还给了受害者"
                 cost = canAddBlock
 
@@ -264,7 +264,7 @@ async def _(event: GroupMessageEvent):
             await BagUser.spend_gold(qq, group, cost)
 
             # 对这笔黑钱进行记录
-            await TZBlack.add_blackMoney(uid=uid, from_qq=qq, num=cost, inNum=(cost - num), gid=group)
+            await TZBlack.add_blackMoney(uid=uid, from_qq=qq, num=cost, inNum=cost, gid=group)
 
     else:
         if check < random.randint(succes * 27 // 100, succes * 36 // 100):
@@ -344,7 +344,7 @@ async def _(event: GroupMessageEvent):
             at_sender=True)
         return
 
-    q = await GroupInfoUser.get_or_none(user_qq=qq, group_id=group)
+    q = await GroupInfoUser.get_or_none(user_id=qq, group_id=group)
     if q == None:
         await jc.finish("你找不到打劫的对象，不如叫他先去签到？", at_sender=True)
     else:

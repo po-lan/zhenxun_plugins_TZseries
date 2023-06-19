@@ -86,7 +86,7 @@ async def _(bot: Bot, event: GroupMessageEvent, arg: Message = CommandArg()):
             at_sender=True)
 
     # allLotteryGold = await TZlottery.getLotteryGold(gid) + int(cost*0.7)
-    allLotteryGold = await TZtreasury.get(gid) + int(cost * 0.7)
+    allLotteryGold = await TZtreasury.get_group_treasury(gid) + int(cost * 0.7)
     await TZtreasury.update_treasury_info(group_id=gid, num=int(cost * 0.2))
 
     await BagUser.spend_gold(uid, gid, cost)
