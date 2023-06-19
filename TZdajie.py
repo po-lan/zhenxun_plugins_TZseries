@@ -107,7 +107,7 @@ async def _(event: GroupMessageEvent):
             at_sender=True)
 
     # 获取 被打劫用户名
-    q = await GroupInfoUser.get_or_none(user_qq=qq, group_id=group)
+    q = await GroupInfoUser.get_or_none(user_id=qq, group_id=group)
     if q == None:
         await jc.finish("你找不到打劫的对象，不如叫他先去签到？", at_sender=True)
     else:
@@ -344,7 +344,7 @@ async def _(event: GroupMessageEvent):
             at_sender=True)
         return
 
-    q = await GroupInfoUser.get_or_none(user_qq=qq, group_id=group)
+    q = await GroupInfoUser.get_or_none(user_id=qq, group_id=group)
     if q == None:
         await jc.finish("你找不到打劫的对象，不如叫他先去签到？", at_sender=True)
     else:
